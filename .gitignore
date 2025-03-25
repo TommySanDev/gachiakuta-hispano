@@ -1,0 +1,33 @@
+# Go
+*.exe
+*.out
+*.test
+/vendor/
+
+# Node
+node_modules/
+dist/
+.next/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker
+docker-compose.override.yml
+.env
+
+# .env files
+*.env
+
+# Astro-specific
+.astro/
+
+# macOS-specific files
+.DS_Store
+
+# JetBrains setting folder
+.idea/
