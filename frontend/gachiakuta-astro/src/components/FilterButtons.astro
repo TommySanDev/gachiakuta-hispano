@@ -1,0 +1,50 @@
+---
+interface FilterButton {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  buttons: FilterButton[];
+  activeFilter?: string;
+}
+
+const { buttons, activeFilter = '' } = Astro.props;
+---
+
+<div class="w-full max-w-3xl mx-auto">
+  <div class="flex justify-center gap-0.5 w-full">
+    {buttons.map(button => (
+      <button 
+        class="filter-button bg-gray-200 hover:bg-gray-300 text-gray-800 py-2.5 px-6 min-w-[120px] transition-all duration-200 border-b-2 border-gray-400 relative overflow-hidden group"
+        data-filter={button.value}
+      >
+        <span class="relative z-10">{button.label}</span>
+        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-red-800 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></span>
+      </button>
+    ))}
+  </div>
+</div>
+
+<script>
+
+</script>
+
+<style>
+  .filter-button {
+    position: relative;
+    font-weight: 500;
+    border-radius: 2px 2px 0 0;
+  }
+  
+  .active-filter {
+    color: #9b0000;
+    background-color: #f0f0f0;
+    border-bottom-color: #9b0000;
+  }
+  
+  .active-filter span:last-child {
+    transform: scaleX(1);
+    height: 2px;
+  }
+</style>

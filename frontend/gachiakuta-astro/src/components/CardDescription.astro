@@ -1,0 +1,10 @@
+---
+interface Props {
+  description: string;
+}
+const { description } = Astro.props;
+---
+<div class="card-description bg-red-900 p-4 text-white opacity-0 hover:opacity-100 transition-opacity duration-300">
+  <div class="font-semibold mb-2 uppercase text-sm tracking-wider">Description:</div>
+  <div>{description}</div>
+</div>

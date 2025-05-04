@@ -1,0 +1,93 @@
+---
+import CardImage from './CardImage.astro';
+import CardName from './CardName.astro';
+interface Props {
+  imageUrl: string;
+  name: string;
+}
+const { imageUrl, name } = Astro.props;
+---
+<div class="content-card">
+  <div class="card-container">
+    <CardImage imageUrl={imageUrl} name={name} />
+    <CardName name={name} />
+  </div>
+</div>
+
+<style>
+  .content-card {
+    position: relative;
+    margin-bottom: 2rem;
+    perspective: 1000px;
+  }
+
+  .card-container {
+    width: 300px;
+    height: 400px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center center;
+    position: relative;
+  }
+
+  /* Hover effect */
+  .card-container:hover {
+    transform: scale(1.4);
+    z-index: 20;
+    filter: brightness(1.1);
+  }
+
+  .content-card:nth-child(odd) .card-container:hover {
+    transform: scale(1.5) translateX(25%);
+  }
+
+  .content-card:nth-child(even) .card-container:hover {
+    transform: scale(1.5) translateX(-25%);
+  }
+
+  .content-card:has(~ .content-card:hover) .card-container,
+  .content-card:hover ~ .content-card .card-container {
+    transform: scale(0.65);
+    opacity: 0.5;
+    filter: blur(2px) brightness(0.8);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .content-card:hover ~ .content-card .card-container {
+    transform: translateY(25%) scale(0.65);
+  }
+
+  .content-card:has(~ .content-card:hover) .card-container {
+    transform: translateY(-25%) scale(0.65);
+  }
+
+  @media (min-width: 768px) {
+    .content-card:nth-child(odd):hover ~ .content-card:nth-child(odd) .card-container {
+      transform: translate(15%, 25%) scale(0.65);
+    }
+
+    .content-card:nth-child(even):hover ~ .content-card:nth-child(even) .card-container {
+      transform: translate(-15%, 25%) scale(0.65);
+    }
+
+    .content-card:nth-child(odd):has(~ .content-card:hover) .card-container {
+      transform: translate(-15%, -25%) scale(0.65);
+    }
+
+    .content-card:nth-child(even):has(~ .content-card:hover) .card-container {
+      transform: translate(15%, -25%) scale(0.65);
+    }
+  }
+
+  .content-card {
+    background: transparent;
+    overflow: visible;
+  }
+
+  .card-container {
+    background: transparent;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+</style>
