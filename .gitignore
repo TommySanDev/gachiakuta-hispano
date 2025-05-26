@@ -31,3 +31,7 @@ docker-compose.override.yml
 
 # JetBrains setting folder
 .idea/
+
+# Tests - Excluir todos los archivos de test
+*_test.go
+
