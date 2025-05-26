@@ -5,6 +5,7 @@ import (
     "crypto/rand"
     "encoding/hex"
     "fmt"
+    "net/http"
     "time"
 
     "golang.org/x/crypto/bcrypt"
@@ -15,29 +16,20 @@ import (
 
 // Handles core authentication operations
 type AuthService struct {
-    userReader    UserReader
-    userWriter    UserWriter
-    sessionWriter SessionWriter
-    mlReader      MagicLinkReader
-    mlWriter      MagicLinkWriter
+    userReader    Reader
+    userWriter    Writer
     emailService  *EmailService
 }
 
 func NewAuthService(
-    userReader UserReader,
-    userWriter UserWriter,
-    sessionWriter SessionWriter,
-    mlReader MagicLinkReader,
-    mlWriter MagicLinkWriter,
+    userReader Reader,
+    userWriter Writer,
     emailService *EmailService,
 ) *AuthService {
     return &AuthService{
-        userReader:    userReader,
-        userWriter:    userWriter,
-        sessionWriter: sessionWriter,
-        mlReader:      mlReader,
-        mlWriter:      mlWriter,
-        emailService:  emailService,
+        userReader:   userReader,
+        userWriter:   userWriter,
+        emailService: emailService,
     }
 }
 
@@ -114,18 +106,14 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthRespons
     }
     
     // Update last login
-    now := time.Now()
-    user.LastLoginAt = &now
-    user.UpdatedAt = now
-    
-    err = s.userWriter.Update(ctx, user)
+    err = s.userWriter.UpdateLastLogin(ctx, user.ID)
     if err != nil {
         log.Warn("Failed to update last login time", zap.Error(err))
         // Don't fail login for this
     }
     
     // Create session
-    session, tokens, err := s.createSession(ctx, user.ID)
+    session, tokens, err := s.createSession(ctx, user.ID, "")
     if err != nil {
         log.Error("Error creating session", zap.Error(err))
         return nil, fmt.Errorf("create session: %w", err)
@@ -183,17 +171,19 @@ func (s *AuthService) GenerateMagicLink(ctx context.Context, input MagicLinkLogi
         UpdatedAt: now,
     }
     
-    err = s.mlWriter.Create(ctx, magicLink)
+    err = s.userWriter.Create(ctx, magicLink)
     if err != nil {
         log.Error("Error creating magic link", zap.Error(err))
         return fmt.Errorf("create magic link: %w", err)
     }
     
     // Send email
-    err = s.emailService.SendMagicLink(ctx, user.Email, token)
-    if err != nil {
-        log.Error("Error sending magic link email", zap.Error(err))
-        return fmt.Errorf("send magic link: %w", err)
+    if s.emailService != nil {
+        err = s.emailService.SendMagicLink(ctx, user.Email, token)
+        if err != nil {
+            log.Error("Error sending magic link email", zap.Error(err))
+            return fmt.Errorf("send magic link: %w", err)
+        }
     }
     
     log.Info("Magic link generated and sent", zap.String("email", input.Email))
@@ -204,7 +194,7 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
     log := logger.GetLogger(zap.String("service", "AuthService"), zap.String("method", "LoginWithMagicLink"))
     
     // Get magic link by token
-    magicLink, err := s.mlReader.GetByToken(ctx, token)
+    magicLink, err := s.userReader.GetMagicLinkByToken(ctx, token)
     if err != nil {
         if err == ErrMagicLinkNotFound {
             return nil, ErrInvalidMagicLink
@@ -219,7 +209,7 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
     }
     
     // Mark as used
-    err = s.mlWriter.MarkAsUsed(ctx, magicLink.ID)
+    err = s.userWriter.MarkMagicLinkUsed(ctx, token)
     if err != nil {
         log.Error("Error marking magic link as used", zap.Error(err))
         return nil, fmt.Errorf("mark magic link as used: %w", err)
@@ -238,17 +228,13 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
     }
     
     // Update last login
-    now := time.Now()
-    user.LastLoginAt = &now
-    user.UpdatedAt = now
-    
-    err = s.userWriter.Update(ctx, user)
+    err = s.userWriter.UpdateLastLogin(ctx, user.ID)
     if err != nil {
         log.Warn("Failed to update last login time", zap.Error(err))
     }
     
     // Create session
-    session, tokens, err := s.createSession(ctx, user.ID)
+    session, tokens, err := s.createSession(ctx, user.ID, "")
     if err != nil {
         log.Error("Error creating session", zap.Error(err))
         return nil, fmt.Errorf("create session: %w", err)
@@ -267,13 +253,32 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
 func (s *AuthService) Logout(ctx context.Context, sessionID string) error {
     log := logger.GetLogger(zap.String("service", "AuthService"), zap.String("method", "Logout"))
     
-    err := s.sessionWriter.Delete(ctx, sessionID)
+    err := s.userWriter.Delete(ctx, sessionID)
     if err != nil {
         log.Error("Error deleting session", zap.Error(err))
         return fmt.Errorf("delete session: %w", err)
     }
     
     return nil
+}
+
+// Helper method to extract request info
+func (s *AuthService) extractRequestInfo(r *http.Request) (userAgent, ipAddress string) {
+    userAgent = r.Header.Get("User-Agent")
+    if userAgent == "" {
+        userAgent = "Unknown"
+    }
+    
+    // Try to get real IP from headers
+    ipAddress = r.Header.Get("X-Real-IP")
+    if ipAddress == "" {
+        ipAddress = r.Header.Get("X-Forwarded-For")
+    }
+    if ipAddress == "" {
+        ipAddress = r.RemoteAddr
+    }
+    
+    return userAgent, ipAddress
 }
 
 // Helper method to generate secure random token
@@ -287,7 +292,7 @@ func (s *AuthService) generateSecureToken() (string, error) {
 }
 
 // Helper method to create session and tokens
-func (s *AuthService) createSession(ctx context.Context, userID uint) (*Session, *TokenPair, error) {
+func (s *AuthService) createSession(ctx context.Context, userID uint, userAgent string) (*Session, *TokenPair, error) {
     // Generate session ID and tokens
     sessionID, err := s.generateSecureToken()
     if err != nil {
@@ -310,12 +315,14 @@ func (s *AuthService) createSession(ctx context.Context, userID uint) (*Session,
         ID:        sessionID,
         UserID:    userID,
         Token:     accessToken,
+        UserAgent: userAgent,
+        IPAddress: "", // Will be set by middleware if available
         ExpiresAt: now.Add(time.Hour),
         CreatedAt: now,
         UpdatedAt: now,
     }
     
-    err = s.sessionWriter.Create(ctx, session)
+    err = s.userWriter.Create(ctx, session)
     if err != nil {
         return nil, nil, fmt.Errorf("create session: %w", err)
     }

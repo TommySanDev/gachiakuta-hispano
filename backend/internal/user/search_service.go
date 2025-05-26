@@ -11,10 +11,10 @@ import (
 
 // Implements advanced search and filtering operations for users
 type SearchService struct {
-    reader UserReader
+    reader Reader
 }
 
-func NewSearchService(reader UserReader) *SearchService {
+func NewSearchService(reader Reader) *SearchService {
     return &SearchService{
         reader: reader,
     }
@@ -92,76 +92,6 @@ func (s *SearchService) ListByRole(ctx context.Context, role string, limit int) 
     if err != nil {
         log.Error("Failed to list users by role", zap.Error(err))
         return nil, fmt.Errorf("list users by role: %w", err)
-    }
-
-    return users, nil
-}
-
-func (s *SearchService) ListActive(ctx context.Context, limit int) ([]*User, error) {
-    log := logger.GetLogger(
-        zap.String("service", "SearchService"), 
-        zap.String("method", "ListActive"),
-    )
-
-    if limit <= 0 {
-        limit = 10
-    }
-    if limit > 50 {
-        limit = 50
-    }
-
-    users, err := s.reader.ListActive(ctx, limit)
-    if err != nil {
-        log.Error("Failed to list active users", zap.Error(err))
-        return nil, fmt.Errorf("list active users: %w", err)
-    }
-
-    return users, nil
-}
-
-func (s *SearchService) ListRecentlyCreated(ctx context.Context, limit int) ([]*User, error) {
-    log := logger.GetLogger(
-        zap.String("service", "SearchService"), 
-        zap.String("method", "ListRecentlyCreated"),
-    )
-
-    if limit <= 0 {
-        limit = 10
-    }
-    if limit > 50 {
-        limit = 50
-    }
-
-    users, err := s.reader.ListRecentlyCreated(ctx, limit)
-    if err != nil {
-        log.Error("Failed to list recently created users", zap.Error(err))
-        return nil, fmt.Errorf("list recently created users: %w", err)
-    }
-
-    return users, nil
-}
-
-func (s *SearchService) SearchByEmail(ctx context.Context, emailPattern string, limit int) ([]*User, error) {
-    log := logger.GetLogger(
-        zap.String("service", "SearchService"), 
-        zap.String("method", "SearchByEmail"),
-    )
-
-    if emailPattern == "" {
-        return nil, fmt.Errorf("%w: email pattern is required", ErrInvalidInput)
-    }
-
-    if limit <= 0 {
-        limit = 10
-    }
-    if limit > 50 {
-        limit = 50
-    }
-
-    users, err := s.reader.SearchByEmail(ctx, emailPattern, limit)
-    if err != nil {
-        log.Error("Failed to search users by email", zap.Error(err))
-        return nil, fmt.Errorf("search users by email: %w", err)
     }
 
     return users, nil

@@ -26,45 +26,44 @@ type UserPermanentDeleter interface {
 
 // Interfaces for writing session data
 type SessionCreator interface {
-    CreateSession(ctx context.Context, session *Session) error
+    Create(ctx context.Context, session *Session) error
 }
 
 type SessionUpdater interface {
-    UpdateSession(ctx context.Context, session *Session) error
+    Update(ctx context.Context, session *Session) error
 }
 
 type SessionDeleter interface {
-    DeleteSession(ctx context.Context, token string) error
-    DeleteUserSessions(ctx context.Context, userID uint) error
-    DeleteExpiredSessions(ctx context.Context) error
+    Delete(ctx context.Context, id string) error
+    DeleteByUserID(ctx context.Context, userID uint) error
+    DeleteExpiredSessions(ctx context.Context) (int64, error)
 }
 
 // Interfaces for writing magic link data
 type MagicLinkCreator interface {
-    CreateMagicLink(ctx context.Context, link *MagicLink) error
+    Create(ctx context.Context, link *MagicLink) error
 }
 
 type MagicLinkUpdater interface {
-    MarkMagicLinkUsed(ctx context.Context, token string) error
+    MarkAsUsed(ctx context.Context, id uint) error
 }
 
 type MagicLinkDeleter interface {
-    DeleteExpiredMagicLinks(ctx context.Context) error
-    DeleteUserMagicLinks(ctx context.Context, userID uint) error
+    DeleteExpired(ctx context.Context) (int, error)
 }
 
 // Interfaces for writing reset token data
 type ResetTokenCreator interface {
-    CreateResetToken(ctx context.Context, token *ResetToken) error
+    Create(ctx context.Context, token *ResetToken) error
 }
 
 type ResetTokenUpdater interface {
-    MarkResetTokenUsed(ctx context.Context, token string) error
+    MarkAsUsed(ctx context.Context, id uint) error
+    InvalidateByUserID(ctx context.Context, userID uint) error
 }
 
 type ResetTokenDeleter interface {
-    DeleteExpiredResetTokens(ctx context.Context) error
-    DeleteUserResetTokens(ctx context.Context, userID uint) error
+    DeleteExpired(ctx context.Context) (int, error)
 }
 
 // Interfaces for writing TOTP data
@@ -86,7 +85,7 @@ type RecoveryCodeCreator interface {
 }
 
 type RecoveryCodeUpdater interface {
-    MarkRecoveryCodeUsed(ctx context.Context, userID uint, code string) error
+    UseRecoveryCode(ctx context.Context, userID uint, code string) error
 }
 
 type RecoveryCodeDeleter interface {

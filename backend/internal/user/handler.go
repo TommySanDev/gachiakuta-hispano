@@ -303,6 +303,103 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
     })
 }
 
+// POST /users/2fa/setup
+func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
+    user, ok := middleware.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        return
+    }
+
+    setupResponse, err := h.totpService.SetupTOTP(r.Context(), user.ID)
+    if err != nil {
+        switch {
+        case errors.Is(err, ErrTOTPAlreadyEnabled):
+            http.Error(w, "2FA already enabled", http.StatusConflict)
+        default:
+            logger.Error("Error setting up 2FA", zap.Error(err))
+            http.Error(w, "Internal server error", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    respondJSON(w, http.StatusOK, setupResponse)
+}
+
+// POST /users/2fa/verify
+func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
+    user, ok := middleware.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        return
+    }
+
+    var input VerifyTOTPInput
+    if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    err := h.totpService.VerifyTOTP(r.Context(), user.ID, input.Code)
+    if err != nil {
+        switch {
+        case errors.Is(err, ErrTOTPNotEnabled):
+            http.Error(w, "2FA not setup", http.StatusBadRequest)
+        case errors.Is(err, ErrInvalidTOTPCode):
+            http.Error(w, "Invalid verification code", http.StatusBadRequest)
+        default:
+            logger.Error("Error verifying 2FA", zap.Error(err))
+            http.Error(w, "Internal server error", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    respondJSON(w, http.StatusOK, map[string]string{
+        "message": "2FA enabled successfully",
+    })
+}
+
+// DELETE /users/2fa
+func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
+    user, ok := middleware.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        return
+    }
+
+    err := h.totpService.DisableTOTP(r.Context(), user.ID)
+    if err != nil {
+        logger.Error("Error disabling 2FA", zap.Error(err))
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+
+    respondJSON(w, http.StatusOK, map[string]string{
+        "message": "2FA disabled successfully",
+    })
+}
+
+// POST /users/2fa/recovery-codes
+func (h *Handler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+    user, ok := middleware.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        return
+    }
+
+    codes, err := h.totpService.GenerateRecoveryCodes(r.Context(), user.ID)
+    if err != nil {
+        logger.Error("Error generating recovery codes", zap.Error(err))
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+
+    respondJSON(w, http.StatusOK, map[string]interface{}{
+        "recovery_codes": codes,
+        "message":        "New recovery codes generated. Save them securely.",
+    })
+}
+
 // GET /admin/users
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
     filter := UserFilter{
@@ -451,103 +548,6 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
         }
         return
     }
-
-// POST /users/2fa/setup
-func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
-    if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
-        return
-    }
-
-    setupResponse, err := h.totpService.SetupTOTP(r.Context(), user.ID)
-    if err != nil {
-        switch {
-        case errors.Is(err, ErrTOTPAlreadyEnabled):
-            http.Error(w, "2FA already enabled", http.StatusConflict)
-        default:
-            logger.Error("Error setting up 2FA", zap.Error(err))
-            http.Error(w, "Internal server error", http.StatusInternalServerError)
-        }
-        return
-    }
-
-    respondJSON(w, http.StatusOK, setupResponse)
-}
-
-// POST /users/2fa/verify
-func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
-    if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
-        return
-    }
-
-    var input VerifyTOTPInput
-    if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-        http.Error(w, "Invalid request payload", http.StatusBadRequest)
-        return
-    }
-
-    err := h.totpService.VerifyTOTP(r.Context(), user.ID, input.Code)
-    if err != nil {
-        switch {
-        case errors.Is(err, ErrTOTPNotEnabled):
-            http.Error(w, "2FA not setup", http.StatusBadRequest)
-        case errors.Is(err, ErrInvalidTOTPCode):
-            http.Error(w, "Invalid verification code", http.StatusBadRequest)
-        default:
-            logger.Error("Error verifying 2FA", zap.Error(err))
-            http.Error(w, "Internal server error", http.StatusInternalServerError)
-        }
-        return
-    }
-
-    respondJSON(w, http.StatusOK, map[string]string{
-        "message": "2FA enabled successfully",
-    })
-}
-
-// DELETE /users/2fa
-func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
-    if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
-        return
-    }
-
-    err := h.totpService.DisableTOTP(r.Context(), user.ID)
-    if err != nil {
-        logger.Error("Error disabling 2FA", zap.Error(err))
-        http.Error(w, "Internal server error", http.StatusInternalServerError)
-        return
-    }
-
-    respondJSON(w, http.StatusOK, map[string]string{
-        "message": "2FA disabled successfully",
-    })
-}
-
-// POST /users/2fa/recovery-codes
-func (h *Handler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
-    if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
-        return
-    }
-
-    codes, err := h.totpService.GenerateRecoveryCodes(r.Context(), user.ID)
-    if err != nil {
-        logger.Error("Error generating recovery codes", zap.Error(err))
-        http.Error(w, "Internal server error", http.StatusInternalServerError)
-        return
-    }
-
-    respondJSON(w, http.StatusOK, map[string]interface{}{
-        "recovery_codes": codes,
-        "message":        "New recovery codes generated. Save them securely.",
-    })
-}
 
     w.WriteHeader(http.StatusNoContent)
 }

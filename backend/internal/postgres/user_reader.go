@@ -224,3 +224,246 @@ func (r *UserReader) ListByRole(ctx context.Context, role string, limit int) ([]
 
     return users, nil
 }
+
+func (r *UserReader) GetByToken(ctx context.Context, token string) (*user.Session, error) {
+    log := logger.GetLogger(zap.String("repository", "UserReader"), zap.String("method", "GetByToken"))
+    
+    query := `
+        SELECT id, user_id, token, user_agent, ip_address, expires_at, created_at, updated_at
+        FROM sessions
+        WHERE token = $1 AND expires_at > NOW()
+    `
+
+    var s user.Session
+    err := r.db.GetContext(ctx, &s, query, token)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Session not found", zap.String("token", "***"))
+            return nil, user.ErrSessionNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &s, nil
+}
+
+func (r *UserReader) GetSessionsByUserID(ctx context.Context, userID uint) ([]*user.Session, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetSessionsByUserID"),
+    )
+    
+    query := `
+        SELECT id, user_id, token, user_agent, ip_address, expires_at, created_at, updated_at
+        FROM sessions
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+    `
+
+    var sessions []*user.Session
+    err := r.db.SelectContext(ctx, &sessions, query, userID)
+    if err != nil {
+        log.Error("Error querying sessions by user", zap.Error(err))
+        return nil, fmt.Errorf("query sessions by user: %w", err)
+    }
+
+    return sessions, nil
+}
+
+func (r *UserReader) GetActiveSessionsByUserID(ctx context.Context, userID uint) ([]*user.Session, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetActiveSessionsByUserID"),
+    )
+    
+    query := `
+        SELECT id, user_id, token, user_agent, ip_address, expires_at, created_at, updated_at
+        FROM sessions
+        WHERE user_id = $1 AND expires_at > NOW()
+        ORDER BY created_at DESC
+    `
+
+    var sessions []*user.Session
+    err := r.db.SelectContext(ctx, &sessions, query, userID)
+    if err != nil {
+        log.Error("Error querying active sessions by user", zap.Error(err))
+        return nil, fmt.Errorf("query active sessions by user: %w", err)
+    }
+
+    return sessions, nil
+}
+
+func (r *UserReader) GetMagicLinkByToken(ctx context.Context, token string) (*user.MagicLink, error) {
+    log := logger.GetLogger(zap.String("repository", "UserReader"), zap.String("method", "GetMagicLinkByToken"))
+    
+    query := `
+        SELECT id, user_id, token, used, expires_at, created_at, updated_at
+        FROM magic_links
+        WHERE token = $1 AND used = false
+    `
+
+    var ml user.MagicLink
+    err := r.db.GetContext(ctx, &ml, query, token)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Magic link not found", zap.String("token_prefix", token[:8]+"..."))
+            return nil, user.ErrMagicLinkNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &ml, nil
+}
+
+func (r *UserReader) GetActiveMagicLinkByUserID(ctx context.Context, userID uint) (*user.MagicLink, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetActiveMagicLinkByUserID"),
+    )
+    
+    query := `
+        SELECT id, user_id, token, used, expires_at, created_at, updated_at
+        FROM magic_links
+        WHERE user_id = $1 AND used = false AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1
+    `
+
+    var ml user.MagicLink
+    err := r.db.GetContext(ctx, &ml, query, userID)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Active magic link not found", zap.Uint("user_id", userID))
+            return nil, user.ErrMagicLinkNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &ml, nil
+}
+
+func (r *UserReader) GetResetTokenByToken(ctx context.Context, token string) (*user.ResetToken, error) {
+    log := logger.GetLogger(zap.String("repository", "UserReader"), zap.String("method", "GetResetTokenByToken"))
+    
+    query := `
+        SELECT id, user_id, token, used, expires_at, created_at, updated_at
+        FROM reset_tokens
+        WHERE token = $1 AND used = false
+    `
+
+    var rt user.ResetToken
+    err := r.db.GetContext(ctx, &rt, query, token)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Reset token not found", zap.String("token_prefix", token[:8]+"..."))
+            return nil, user.ErrResetTokenNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &rt, nil
+}
+
+func (r *UserReader) GetActiveResetTokenByUserID(ctx context.Context, userID uint) (*user.ResetToken, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetActiveResetTokenByUserID"),
+    )
+    
+    query := `
+        SELECT id, user_id, token, used, expires_at, created_at, updated_at
+        FROM reset_tokens
+        WHERE user_id = $1 AND used = false AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1
+    `
+
+    var rt user.ResetToken
+    err := r.db.GetContext(ctx, &rt, query, userID)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Active reset token not found", zap.Uint("user_id", userID))
+            return nil, user.ErrResetTokenNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &rt, nil
+}
+
+func (r *UserReader) GetTOTPByUserID(ctx context.Context, userID uint) (*user.TOTPSecret, error) {
+    log := logger.GetLogger(zap.String("repository", "UserReader"), zap.String("method", "GetTOTPByUserID"))
+    
+    query := `
+        SELECT id, user_id, secret, verified, created_at, updated_at
+        FROM totp_secrets
+        WHERE user_id = $1
+    `
+
+    var totp user.TOTPSecret
+    err := r.db.GetContext(ctx, &totp, query, userID)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("TOTP secret not found", zap.Uint("user_id", userID))
+            return nil, user.ErrTOTPNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &totp, nil
+}
+
+func (r *UserReader) GetUnusedRecoveryCodesByUserID(ctx context.Context, userID uint) ([]*user.RecoveryCode, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetUnusedRecoveryCodesByUserID"),
+    )
+    
+    query := `
+        SELECT id, user_id, code, used, created_at, updated_at
+        FROM recovery_codes
+        WHERE user_id = $1 AND used = false
+        ORDER BY created_at ASC
+    `
+
+    var codes []*user.RecoveryCode
+    err := r.db.SelectContext(ctx, &codes, query, userID)
+    if err != nil {
+        log.Error("Error querying recovery codes", zap.Error(err), zap.Uint("user_id", userID))
+        return nil, fmt.Errorf("query recovery codes: %w", err)
+    }
+
+    return codes, nil
+}
+
+func (r *UserReader) GetRecoveryCodeByCode(ctx context.Context, userID uint, code string) (*user.RecoveryCode, error) {
+    log := logger.GetLogger(
+        zap.String("repository", "UserReader"), 
+        zap.String("method", "GetRecoveryCodeByCode"),
+    )
+    
+    query := `
+        SELECT id, user_id, code, used, created_at, updated_at
+        FROM recovery_codes
+        WHERE user_id = $1 AND code = $2
+    `
+
+    var rc user.RecoveryCode
+    err := r.db.GetContext(ctx, &rc, query, userID, code)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            log.Debug("Recovery code not found", zap.Uint("user_id", userID))
+            return nil, user.ErrRecoveryCodeNotFound
+        }
+        log.Error("Database error", zap.Error(err))
+        return nil, fmt.Errorf("database error: %w", err)
+    }
+
+    return &rc, nil
+}

@@ -144,6 +144,16 @@ type ResetPasswordInput struct {
     NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
+// Dto for TOTP verification
+type VerifyTOTPInput struct {
+    Code string `json:"code" validate:"required,len=6"`
+}
+
+// Dto for using recovery codes
+type UseRecoveryCodeInput struct {
+    Code string `json:"code" validate:"required"`
+}
+
 // Parameters for filtering users
 type UserFilter struct {
     Search         string `json:"search"`
@@ -163,4 +173,11 @@ type AuthResponse struct {
     Token        string `json:"token"`
     RefreshToken string `json:"refresh_token"`
     ExpiresIn    int64  `json:"expires_in"`
+}
+
+// Response structure for TOTP setup
+type TOTPSetupResponse struct {
+    Secret    string `json:"secret"`
+    QRCode    []byte `json:"qr_code"`
+    BackupURL string `json:"backup_url"`
 }

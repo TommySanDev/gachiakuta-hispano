@@ -1,3 +1,4 @@
+
 package user
 
 import "errors"
@@ -32,6 +33,7 @@ var (
     ErrMagicLinkExpired   = errors.New("magic link expired")
     ErrMagicLinkUsed      = errors.New("magic link already used")
     ErrMagicLinkDisabled  = errors.New("magic link disabled")
+    ErrInvalidMagicLink   = errors.New("invalid magic link")
 )
 
 // Reset token errors
@@ -39,6 +41,7 @@ var (
     ErrResetTokenNotFound = errors.New("reset token not found")
     ErrResetTokenExpired  = errors.New("reset token expired")
     ErrResetTokenUsed     = errors.New("reset token already used")
+    ErrInvalidResetToken  = errors.New("invalid reset token")
 )
 
 // TOTP errors
