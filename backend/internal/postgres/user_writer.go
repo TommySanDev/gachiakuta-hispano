@@ -1,219 +1,166 @@
-package postgres
+package user
 
-import (
-    "context"
-    "fmt"
-    "time"
+import "context"
 
-    "github.com/jmoiron/sqlx"
-    "go.uber.org/zap"
-
-    "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/user"
-)
-
-// Implements user.Writer using PostgreSQL
-type UserWriter struct {
-    db *sqlx.DB
+// Interfaces for writing user data
+type UserCreator interface {
+    Create(ctx context.Context, user *User) error
 }
 
-func NewUserWriter(db *sqlx.DB) *UserWriter {
-    return &UserWriter{
-        db: db,
-    }
+type UserUpdater interface {
+    Update(ctx context.Context, user *User) error
+    UpdateLastLogin(ctx context.Context, userID uint) error
 }
 
-func (w *UserWriter) Create(ctx context.Context, u *user.User) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "Create"))
-    
-    query := `
-        INSERT INTO users (
-            email, username, password_hash, first_name, last_name, role,
-            is_active, email_verified, magic_link_enabled, totp_enabled,
-            created_at, updated_at
-        ) VALUES (
-            :email, :username, :password_hash, :first_name, :last_name, :role,
-            :is_active, :email_verified, :magic_link_enabled, :totp_enabled,
-            :created_at, :updated_at
-        )
-        RETURNING id
-    `
-
-    rows, err := w.db.NamedQueryContext(ctx, query, u)
-    if err != nil {
-        log.Error("Error creating user", zap.Error(err), zap.String("email", u.Email))
-        return fmt.Errorf("insert user: %w", err)
-    }
-    defer rows.Close()
-
-    if rows.Next() {
-        err = rows.Scan(&u.ID)
-        if err != nil {
-            log.Error("Error scanning ID", zap.Error(err))
-            return fmt.Errorf("scan ID: %w", err)
-        }
-    }
-    
-    return nil
+type UserDeleter interface {
+    Delete(ctx context.Context, id uint) error
 }
 
-func (w *UserWriter) Update(ctx context.Context, u *user.User) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "Update"))
-    
-    query := `
-        UPDATE users
-        SET username = :username,
-            password_hash = :password_hash,
-            first_name = :first_name,
-            last_name = :last_name,
-            role = :role,
-            is_active = :is_active,
-            email_verified = :email_verified,
-            magic_link_enabled = :magic_link_enabled,
-            totp_enabled = :totp_enabled,
-            updated_at = :updated_at
-        WHERE id = :id AND deleted_at IS NULL
-    `
-
-    result, err := w.db.NamedExecContext(ctx, query, u)
-    if err != nil {
-        log.Error("Error updating user", zap.Error(err), zap.Uint("id", u.ID))
-        return fmt.Errorf("update user: %w", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        log.Error("Error getting rows affected", zap.Error(err))
-        return fmt.Errorf("get rows affected: %w", err)
-    }
-
-    if rows == 0 {
-        log.Warn("No user found to update", zap.Uint("id", u.ID))
-        return user.ErrUserNotFound
-    }
-
-    return nil
+type UserRestorer interface {
+    Restore(ctx context.Context, id uint) error
 }
 
-func (w *UserWriter) UpdateLastLogin(ctx context.Context, userID uint) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "UpdateLastLogin"))
-    
-    query := `
-        UPDATE users
-        SET last_login_at = $1, updated_at = $1
-        WHERE id = $2 AND deleted_at IS NULL
-    `
-
-    now := time.Now()
-    result, err := w.db.ExecContext(ctx, query, now, userID)
-    if err != nil {
-        log.Error("Error updating last login", zap.Error(err), zap.Uint("userID", userID))
-        return fmt.Errorf("update last login: %w", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        log.Error("Error getting rows affected", zap.Error(err))
-        return fmt.Errorf("get rows affected: %w", err)
-    }
-
-    if rows == 0 {
-        log.Warn("No user found to update last login", zap.Uint("userID", userID))
-        return user.ErrUserNotFound
-    }
-
-    return nil
+type UserPermanentDeleter interface {
+    DeletePermanently(ctx context.Context, id uint) error
 }
 
-func (w *UserWriter) Delete(ctx context.Context, id uint) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "Delete"))
-    
-    query := `
-        UPDATE users
-        SET deleted_at = :deleted_at
-        WHERE id = :id AND deleted_at IS NULL
-    `
-
-    params := map[string]interface{}{
-        "id":         id,
-        "deleted_at": time.Now(),
-    }
-
-    result, err := w.db.NamedExecContext(ctx, query, params)
-    if err != nil {
-        log.Error("Error deleting user", zap.Error(err), zap.Uint("id", id))
-        return fmt.Errorf("delete user: %w", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        log.Error("Error getting rows affected", zap.Error(err))
-        return fmt.Errorf("get rows affected: %w", err)
-    }
-
-    if rows == 0 {
-        log.Warn("No user found to delete", zap.Uint("id", id))
-        return user.ErrUserNotFound
-    }
-
-    return nil
+// Interfaces for writing session data
+type SessionCreator interface {
+    Create(ctx context.Context, session *Session) error
 }
 
-func (w *UserWriter) Restore(ctx context.Context, id uint) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "Restore"))
-    
-    query := `
-        UPDATE users
-        SET deleted_at = NULL, updated_at = :updated_at
-        WHERE id = :id AND deleted_at IS NOT NULL
-    `
-
-    params := map[string]interface{}{
-        "id":         id,
-        "updated_at": time.Now(),
-    }
-
-    result, err := w.db.NamedExecContext(ctx, query, params)
-    if err != nil {
-        log.Error("Error restoring user", zap.Error(err), zap.Uint("id", id))
-        return fmt.Errorf("restore user: %w", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        log.Error("Error getting rows affected", zap.Error(err))
-        return fmt.Errorf("get rows affected: %w", err)
-    }
-
-    if rows == 0 {
-        log.Warn("No user found to restore", zap.Uint("id", id))
-        return user.ErrUserNotFound
-    }
-
-    return nil
+type SessionUpdater interface {
+    Update(ctx context.Context, session *Session) error
 }
 
-func (w *UserWriter) DeletePermanently(ctx context.Context, id uint) error {
-    log := logger.GetLogger(zap.String("repository", "UserWriter"), zap.String("method", "DeletePermanently"))
-    
-    query := `DELETE FROM users WHERE id = $1`
+type SessionDeleter interface {
+    Delete(ctx context.Context, id string) error
+    DeleteByUserID(ctx context.Context, userID uint) error
+    DeleteExpiredSessions(ctx context.Context) (int64, error)
+}
 
-    result, err := w.db.ExecContext(ctx, query, id)
-    if err != nil {
-        log.Error("Error permanently deleting user", zap.Error(err), zap.Uint("id", id))
-        return fmt.Errorf("delete user permanently: %w", err)
-    }
+// Interfaces for writing magic link data
+type MagicLinkCreator interface {
+    Create(ctx context.Context, link *MagicLink) error
+}
 
-    rows, err := result.RowsAffected()
-    if err != nil {
-        log.Error("Error getting rows affected", zap.Error(err))
-        return fmt.Errorf("get rows affected: %w", err)
-    }
+type MagicLinkUpdater interface {
+    MarkAsUsed(ctx context.Context, id uint) error
+}
 
-    if rows == 0 {
-        log.Warn("No user found to delete permanently", zap.Uint("id", id))
-        return user.ErrUserNotFound
-    }
+type MagicLinkDeleter interface {
+    DeleteExpired(ctx context.Context) (int, error)
+}
 
-    return nil
+// Interfaces for writing reset token data
+type ResetTokenCreator interface {
+    Create(ctx context.Context, token *ResetToken) error
+}
+
+type ResetTokenUpdater interface {
+    MarkAsUsed(ctx context.Context, id uint) error
+    InvalidateByUserID(ctx context.Context, userID uint) error
+}
+
+type ResetTokenDeleter interface {
+    DeleteExpired(ctx context.Context) (int, error)
+}
+
+// Interfaces for writing TOTP data
+type TOTPCreator interface {
+    CreateTOTPSecret(ctx context.Context, secret *TOTPSecret) error
+}
+
+type TOTPUpdater interface {
+    VerifyTOTPSecret(ctx context.Context, userID uint) error
+}
+
+type TOTPDeleter interface {
+    DeleteTOTPSecret(ctx context.Context, userID uint) error
+}
+
+// Interfaces for writing recovery codes
+type RecoveryCodeCreator interface {
+    CreateRecoveryCodes(ctx context.Context, codes []*RecoveryCode) error
+}
+
+type RecoveryCodeUpdater interface {
+    UseRecoveryCode(ctx context.Context, userID uint, code string) error
+}
+
+type RecoveryCodeDeleter interface {
+    DeleteRecoveryCodes(ctx context.Context, userID uint) error
+}
+
+// Reader interfaces for auth operations (needed by AuthService)
+type UserReader interface {
+    GetByID(ctx context.Context, id uint) (*User, error)
+    GetByEmail(ctx context.Context, email string) (*User, error)
+    GetByUsername(ctx context.Context, username string) (*User, error)
+    List(ctx context.Context, filter UserFilter) ([]*User, int, error)
+    ListByRole(ctx context.Context, role string, limit int) ([]*User, error)
+}
+
+type SessionReader interface {
+    GetByToken(ctx context.Context, token string) (*Session, error)
+    GetSessionsByUserID(ctx context.Context, userID uint) ([]*Session, error)
+    GetActiveSessionsByUserID(ctx context.Context, userID uint) ([]*Session, error)
+}
+
+type MagicLinkReader interface {
+    GetByToken(ctx context.Context, token string) (*MagicLink, error)
+    GetActiveByUserID(ctx context.Context, userID uint) ([]*MagicLink, error)
+}
+
+type ResetTokenReader interface {
+    GetByToken(ctx context.Context, token string) (*ResetToken, error)
+    GetActiveByUserID(ctx context.Context, userID uint) ([]*ResetToken, error)
+}
+
+type TOTPReader interface {
+    GetByUserID(ctx context.Context, userID uint) (*TOTPSecret, error)
+}
+
+type RecoveryCodeReader interface {
+    GetRecoveryCodes(ctx context.Context, userID uint) ([]*RecoveryCode, error)
+}
+
+// Writer composes all write interfaces
+type Writer interface {
+    UserCreator
+    UserUpdater
+    UserDeleter
+    UserRestorer
+    UserPermanentDeleter
+    SessionCreator
+    SessionUpdater
+    SessionDeleter
+    MagicLinkCreator
+    MagicLinkUpdater
+    MagicLinkDeleter
+    ResetTokenCreator
+    ResetTokenUpdater
+    ResetTokenDeleter
+    TOTPCreator
+    TOTPUpdater
+    TOTPDeleter
+    RecoveryCodeCreator
+    RecoveryCodeUpdater
+    RecoveryCodeDeleter
+}
+
+// Reader composes all read interfaces
+type Reader interface {
+    UserReader
+    SessionReader
+    MagicLinkReader
+    ResetTokenReader
+    TOTPReader
+    RecoveryCodeReader
+}
+
+// Store composes all read and write operations
+type Store interface {
+    Reader
+    Writer
 }
