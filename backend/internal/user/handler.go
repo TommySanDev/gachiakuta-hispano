@@ -8,9 +8,9 @@ import (
 
     "github.com/go-chi/chi/v5"
     "go.uber.org/zap"
-    
+
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
+    ctxutil "github.com/TommySanDev/gachiakuta-hispano/internal/context"
 )
 
 type Handler struct {
@@ -161,6 +161,17 @@ func (h *Handler) ValidateResetToken(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
+        return
+    }
+
     user, err := h.passwordService.ValidateResetToken(r.Context(), token)
     if err != nil {
         switch {
@@ -191,6 +202,17 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
+        return
+    }
+
     err := h.passwordService.ResetPassword(r.Context(), input)
     if err != nil {
         switch {
@@ -214,9 +236,14 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 // POST /auth/logout
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-    session, ok := middleware.GetSessionFromContext(r.Context())
+    sessionRaw, ok := ctxutil.GetSessionFromContext(r.Context())
     if !ok {
         http.Error(w, "Session not found", http.StatusUnauthorized)
+        return
+    }
+    session, ok := sessionRaw.(*Session)
+    if !ok {
+        http.Error(w, "Invalid session type", http.StatusUnauthorized)
         return
     }
 
@@ -234,9 +261,14 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 // GET /users/me
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -245,9 +277,14 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/me
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -274,9 +311,14 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/password
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -305,9 +347,14 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 // POST /users/2fa/setup
 func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -328,9 +375,14 @@ func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
 
 // POST /users/2fa/verify
 func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -361,9 +413,14 @@ func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /users/2fa
 func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -381,9 +438,14 @@ func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 
 // POST /users/2fa/recovery-codes
 func (h *Handler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    userRaw, ok := ctxutil.GetUserFromContext(r.Context())
     if !ok {
-        http.Error(w, "User not found in context", http.StatusUnauthorized)
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+    user, ok := userRaw.(*User)
+    if !ok {
+        http.Error(w, "Invalid user type", http.StatusUnauthorized)
         return
     }
 
@@ -412,7 +474,6 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
         IncludeDeleted: r.URL.Query().Get("include_deleted") == "true",
     }
 
-    // Parse boolean filters
     if isActiveStr := r.URL.Query().Get("is_active"); isActiveStr != "" {
         if isActive, err := strconv.ParseBool(isActiveStr); err == nil {
             filter.IsActive = &isActive
@@ -599,3 +660,4 @@ func (h *Handler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 
     w.WriteHeader(http.StatusNoContent)
 }
+

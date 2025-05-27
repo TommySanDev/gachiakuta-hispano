@@ -8,7 +8,6 @@ import (
     "go.uber.org/zap"
     
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
 
 // Context keys for user data
