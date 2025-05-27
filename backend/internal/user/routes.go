@@ -5,7 +5,7 @@ import (
     "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
 )
 
-// User routes with authentication and authorization
+// RegisterRoutes registers user and authentication routes
 func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware *middleware.AuthMiddleware) {
     // Public authentication routes
     r.Route("/auth", func(r chi.Router) {
@@ -39,7 +39,7 @@ func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware *middleware.AuthMi
     // Admin routes
     r.Route("/admin/users", func(r chi.Router) {
         r.Use(authMiddleware.Authenticate)
-        r.Use(authMiddleware.RequireRole(RoleAdmin))
+        r.Use(authMiddleware.RequireRole("admin"))
 
         r.Get("/", h.ListUsers)
         r.Post("/", h.CreateUser)

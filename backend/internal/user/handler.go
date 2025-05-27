@@ -214,7 +214,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 // POST /auth/logout
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-    session, ok := middleware.GetSessionFromContext(r.Context())
+    session, ok := auth.GetSessionFromContext(r.Context())
     if !ok {
         http.Error(w, "Session not found", http.StatusUnauthorized)
         return
@@ -234,9 +234,17 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 // GET /users/me
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    authUser, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+
+    // Get the full user entity from database
+    user, err := h.crudService.Get(r.Context(), authUser.ID)
+    if err != nil {
+        logger.Error("Error getting current user", zap.Error(err))
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
         return
     }
 
@@ -245,7 +253,7 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/me
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    authUser, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
         return
@@ -257,7 +265,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    updatedUser, err := h.crudService.Update(r.Context(), user.ID, input)
+    updatedUser, err := h.crudService.Update(r.Context(), authUser.ID, input)
     if err != nil {
         switch {
         case errors.Is(err, ErrInvalidInput):

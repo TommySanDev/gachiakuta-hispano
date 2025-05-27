@@ -1,31 +1,32 @@
 package middleware
 
 import (
-    "context"
     "net/http"
     "strings"
 
     "go.uber.org/zap"
     
+    "github.com/TommySanDev/gachiakuta-hispano/internal/auth"
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
 
-// Context keys for user data
-type contextKey string
+// Reader interfaces for authentication middleware
+type SessionReader interface {
+    GetByToken(ctx context.Context, token string) (*auth.Session, error)
+}
 
-const (
-    UserContextKey    contextKey = "user"
-    SessionContextKey contextKey = "session"
-)
+type UserReader interface {
+    GetByID(ctx context.Context, userID uint) (*auth.User, error)
+}
 
 // Middleware for authentication and authorization
 type AuthMiddleware struct {
-    sessionReader user.SessionReader
-    userReader    user.UserReader
+    sessionReader SessionReader
+    userReader    UserReader
 }
 
-func NewAuthMiddleware(sessionReader user.SessionReader, userReader user.UserReader) *AuthMiddleware {
+// NewAuthMiddleware creates a new authentication middleware
+func NewAuthMiddleware(sessionReader SessionReader, userReader UserReader) *AuthMiddleware {
     return &AuthMiddleware{
         sessionReader: sessionReader,
         userReader:    userReader,
@@ -63,7 +64,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
         // Get session by token
         session, err := m.sessionReader.GetByToken(r.Context(), token)
         if err != nil {
-            if err == user.ErrSessionNotFound {
+            if err == auth.ErrSessionNotFound {
                 log.Debug("Invalid token provided")
                 http.Error(w, "Invalid token", http.StatusUnauthorized)
                 return
@@ -81,9 +82,9 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
         }
 
         // Get user
-        userObj, err := m.userReader.GetByID(r.Context(), session.UserID)
+        user, err := m.userReader.GetByID(r.Context(), session.UserID)
         if err != nil {
-            if err == user.ErrUserNotFound {
+            if err == auth.ErrUserNotFound {
                 log.Debug("User not found for session", zap.Uint("user_id", session.UserID))
                 http.Error(w, "User not found", http.StatusUnauthorized)
                 return
@@ -94,15 +95,15 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
         }
 
         // Check if user is active
-        if !userObj.IsActive {
-            log.Debug("Inactive user attempted access", zap.Uint("user_id", userObj.ID))
+        if !user.IsActive {
+            log.Debug("Inactive user attempted access", zap.Uint("user_id", user.ID))
             http.Error(w, "Account inactive", http.StatusForbidden)
             return
         }
 
         // Add user and session to context
-        ctx := context.WithValue(r.Context(), UserContextKey, userObj)
-        ctx = context.WithValue(ctx, SessionContextKey, session)
+        ctx := auth.SetUserInContext(r.Context(), user)
+        ctx = auth.SetSessionInContext(ctx, session)
 
         // Continue to next handler
         next.ServeHTTP(w, r.WithContext(ctx))
@@ -116,7 +117,7 @@ func (m *AuthMiddleware) RequireRole(role string) func(http.Handler) http.Handle
             log := logger.GetLogger(zap.String("middleware", "Auth"), zap.String("method", "RequireRole"))
             
             // Get user from context
-            userObj, ok := r.Context().Value(UserContextKey).(*user.User)
+            user, ok := auth.GetUserFromContext(r.Context())
             if !ok {
                 log.Error("User not found in context")
                 http.Error(w, "Authentication required", http.StatusUnauthorized)
@@ -124,11 +125,11 @@ func (m *AuthMiddleware) RequireRole(role string) func(http.Handler) http.Handle
             }
 
             // Check role permission
-            if !m.hasPermission(userObj.Role, role) {
+            if !m.hasPermission(user.Role, role) {
                 log.Debug("Insufficient permissions", 
-                    zap.String("user_role", userObj.Role), 
+                    zap.String("user_role", user.Role), 
                     zap.String("required_role", role),
-                    zap.Uint("user_id", userObj.ID),
+                    zap.Uint("user_id", user.ID),
                 )
                 http.Error(w, "Insufficient permissions", http.StatusForbidden)
                 return
@@ -146,7 +147,7 @@ func (m *AuthMiddleware) RequireAnyRole(roles ...string) func(http.Handler) http
             log := logger.GetLogger(zap.String("middleware", "Auth"), zap.String("method", "RequireAnyRole"))
             
             // Get user from context
-            userObj, ok := r.Context().Value(UserContextKey).(*user.User)
+            user, ok := auth.GetUserFromContext(r.Context())
             if !ok {
                 log.Error("User not found in context")
                 http.Error(w, "Authentication required", http.StatusUnauthorized)
@@ -156,7 +157,7 @@ func (m *AuthMiddleware) RequireAnyRole(roles ...string) func(http.Handler) http
             // Check if user has any of the required roles
             hasPermission := false
             for _, role := range roles {
-                if m.hasPermission(userObj.Role, role) {
+                if m.hasPermission(user.Role, role) {
                     hasPermission = true
                     break
                 }
@@ -164,9 +165,9 @@ func (m *AuthMiddleware) RequireAnyRole(roles ...string) func(http.Handler) http
 
             if !hasPermission {
                 log.Debug("Insufficient permissions for any required role", 
-                    zap.String("user_role", userObj.Role), 
+                    zap.String("user_role", user.Role), 
                     zap.Strings("required_roles", roles),
-                    zap.Uint("user_id", userObj.ID),
+                    zap.Uint("user_id", user.ID),
                 )
                 http.Error(w, "Insufficient permissions", http.StatusForbidden)
                 return
@@ -183,7 +184,7 @@ func (m *AuthMiddleware) Require2FA(next http.Handler) http.Handler {
         log := logger.GetLogger(zap.String("middleware", "Auth"), zap.String("method", "Require2FA"))
         
         // Get user from context
-        userObj, ok := r.Context().Value(UserContextKey).(*user.User)
+        user, ok := auth.GetUserFromContext(r.Context())
         if !ok {
             log.Error("User not found in context")
             http.Error(w, "Authentication required", http.StatusUnauthorized)
@@ -191,9 +192,9 @@ func (m *AuthMiddleware) Require2FA(next http.Handler) http.Handler {
         }
 
         // Check if 2FA is enabled and verified (Phase 3 implementation)
-        if userObj.TOTPEnabled {
+        if user.TOTPEnabled {
             // TODO: Implement 2FA verification in Phase 3
-            log.Debug("2FA verification required but not yet implemented", zap.Uint("user_id", userObj.ID))
+            log.Debug("2FA verification required but not yet implemented", zap.Uint("user_id", user.ID))
             // For now, allow access - will be implemented in Phase 3
         }
 
@@ -204,31 +205,19 @@ func (m *AuthMiddleware) Require2FA(next http.Handler) http.Handler {
 // Helper method to check role permissions with hierarchy
 func (m *AuthMiddleware) hasPermission(userRole, requiredRole string) bool {
     // Admin has access to everything
-    if userRole == user.RoleAdmin {
+    if userRole == auth.RoleAdmin {
         return true
     }
 
     // Editor has access to editor and user operations
-    if userRole == user.RoleEditor && (requiredRole == user.RoleEditor || requiredRole == user.RoleUser) {
+    if userRole == auth.RoleEditor && (requiredRole == auth.RoleEditor || requiredRole == auth.RoleUser) {
         return true
     }
 
     // User has access only to user operations
-    if userRole == user.RoleUser && requiredRole == user.RoleUser {
+    if userRole == auth.RoleUser && requiredRole == auth.RoleUser {
         return true
     }
 
     return false
-}
-
-// Helper function to get user from context
-func GetUserFromContext(ctx context.Context) (*user.User, bool) {
-    userObj, ok := ctx.Value(UserContextKey).(*user.User)
-    return userObj, ok
-}
-
-// Helper function to get session from context
-func GetSessionFromContext(ctx context.Context) (*user.Session, bool) {
-    session, ok := ctx.Value(SessionContextKey).(*user.Session)
-    return session, ok
 }
