@@ -7,15 +7,17 @@ import (
     "strconv"
 
     "github.com/go-chi/chi/v5"
+    "github.com/TommySanDev/gachiakuta-hispano/internal/auth"
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
     "go.uber.org/zap"
 )
 
+// Handler provides HTTP handlers for comment operations
 type Handler struct {
     crudService *CrudService
 }
 
+// NewHandler creates a new comment handler
 func NewHandler(crudService *CrudService) *Handler {
     return &Handler{crudService: crudService}
 }
@@ -43,7 +45,7 @@ func (h *Handler) ListByChapter(w http.ResponseWriter, r *http.Request) {
 
 // POST /comments
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
@@ -72,7 +74,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 // PUT /comments/{id}
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
@@ -108,7 +110,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /comments/{id}
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "Unauthorized", http.StatusUnauthorized)
         return
@@ -154,4 +156,3 @@ func (h *Handler) DeletePermanently(w http.ResponseWriter, r *http.Request) {
 
     w.WriteHeader(http.StatusNoContent)
 }
-

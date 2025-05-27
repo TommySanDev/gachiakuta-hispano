@@ -109,7 +109,10 @@ func main() {
 	favoriteHandler := favorite.NewHandler(favoriteCrudService)
 	userHandler := user.NewHandler(userAuthService, userCrudService, userSearchService, userPasswordService, userTOTPService)
 
-	authMiddleware := customMiddleware.NewAuthMiddleware(sessionReader, userReader)
+  userAdapter := user.NewUserAdapter(userReader)
+  sessionAdapter := user.NewSessionAdapter(sessionReader)
+
+  authMiddleware := middleware.NewAuthMiddleware(sessionAdapter, userAdapter)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)

@@ -6,30 +6,36 @@ import (
     "net/http"
 
     "github.com/go-chi/chi/v5"
+    "github.com/TommySanDev/gachiakuta-hispano/internal/auth"
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
     "go.uber.org/zap"
 )
 
+// Handler provides HTTP handlers for favorite operations
 type Handler struct {
     crudService *CrudService
 }
 
+// NewHandler creates a new favorite handler
 func NewHandler(crudService *CrudService) *Handler {
     return &Handler{crudService: crudService}
 }
 
 // POST /favorites
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
-    userID := getUserIDFromContext(r)
-    var input CreateFavoriteInput
+    user, ok := auth.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
+    var input CreateFavoriteInput
     if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
-    fav, err := h.crudService.Add(r.Context(), userID, input)
+    fav, err := h.crudService.Add(r.Context(), user.ID, input)
     if err != nil {
         switch {
         case errors.Is(err, ErrInvalidInput):
@@ -48,15 +54,19 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /favorites
 func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
-    userID := getUserIDFromContext(r)
-    var input DeleteFavoriteInput
+    user, ok := auth.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
+    var input DeleteFavoriteInput
     if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
-    if err := h.crudService.Remove(r.Context(), userID, input); err != nil {
+    if err := h.crudService.Remove(r.Context(), user.ID, input); err != nil {
         switch {
         case errors.Is(err, ErrInvalidInput):
             http.Error(w, err.Error(), http.StatusBadRequest)
@@ -74,9 +84,13 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 
 // GET /favorites
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-    userID := getUserIDFromContext(r)
+    user, ok := auth.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
-    favorites, err := h.crudService.List(r.Context(), userID)
+    favorites, err := h.crudService.List(r.Context(), user.ID)
     if err != nil {
         logger.Error("Error listing favorites", zap.Error(err))
         http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -102,12 +116,4 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
     }
 
     respondJSON(w, http.StatusOK, result)
-}
-
-func getUserIDFromContext(r *http.Request) uint {
-    user, ok := middleware.GetUserFromContext(r.Context())
-    if ok {
-        return user.ID
-    }
-    return 0
 }
