@@ -9,22 +9,16 @@ type UserCreator interface {
 
 type UserUpdater interface {
     Update(ctx context.Context, user *User) error
+    UpdateLastLogin(ctx context.Context, userID uint) error
 }
 
 type UserDeleter interface {
     Delete(ctx context.Context, id uint) error
+    DeletePermanently(ctx context.Context, id uint) error
 }
 
 type UserRestorer interface {
     Restore(ctx context.Context, id uint) error
-}
-
-type UserPermanentDeleter interface {
-    DeletePermanently(ctx context.Context, id uint) error
-}
-
-type LastLoginUpdater interface {
-    UpdateLastLogin(ctx context.Context, userID uint) error
 }
 
 // Session interfaces
@@ -85,14 +79,12 @@ type TOTPDeleter interface {
     DeleteRecoveryCodes(ctx context.Context, userID uint) error
 }
 
-// Composite writer interfaces
+// Composite writer interfaces for easier use
 type UserWriter interface {
     UserCreator
     UserUpdater
     UserDeleter
     UserRestorer
-    UserPermanentDeleter
-    LastLoginUpdater
 }
 
 type SessionWriter interface {
@@ -126,38 +118,4 @@ type Writer interface {
     MagicLinkWriter
     ResetTokenWriter
     TOTPWriter
-}
-
-// Store composes all read and write operations
-type UserStore interface {
-    UserGetter
-    UserLister
-    UserWriter
-}
-
-type SessionStore interface {
-    SessionGetter
-    SessionWriter
-}
-
-type MagicLinkStore interface {
-    MagicLinkGetter
-    MagicLinkWriter
-}
-
-type ResetTokenStore interface {
-    ResetTokenGetter
-    ResetTokenWriter
-}
-
-type TOTPStore interface {
-    TOTPGetter
-    RecoveryCodeGetter
-    TOTPWriter
-}
-
-// Store composes all read and write operations
-type Store interface {
-    Reader
-    Writer
 }

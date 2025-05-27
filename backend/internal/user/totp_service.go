@@ -18,16 +18,16 @@ import (
 
 // Handles TOTP 2FA operations
 type TOTPService struct {
-    userReader   UserReader
+    userReader   UserGetter
     userWriter   UserWriter
-    totpReader   TOTPReader
+    totpReader   TOTPGetter
     totpWriter   TOTPWriter
 }
 
 func NewTOTPService(
-    userReader UserReader,
+    userReader UserGetter,
     userWriter UserWriter,
-    totpReader TOTPReader,
+    totpReader TOTPGetter,
     totpWriter TOTPWriter,
 ) *TOTPService {
     return &TOTPService{
@@ -253,7 +253,7 @@ func (s *TOTPService) GenerateRecoveryCodes(ctx context.Context, userID uint) ([
     }
     
     // Get codes for return
-    codes, err := s.totpReader.GetRecoveryCodes(ctx, userID)
+    codes, err := s.totpReader.GetUnusedRecoveryCodesByUserID(ctx, userID)
     if err != nil {
         log.Error("Error getting recovery codes", zap.Error(err))
         return nil, fmt.Errorf("get recovery codes: %w", err)
@@ -327,11 +327,3 @@ func (s *TOTPService) generateRecoveryCode() (string, error) {
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5])
     return strings.ToUpper(code), nil
 }
-
-// Response structure for TOTP setup
-type TOTPSetupResponse struct {
-    Secret    string `json:"secret"`
-    QRCode    []byte `json:"qr_code"`
-    BackupURL string `json:"backup_url"`
-}
-

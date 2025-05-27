@@ -15,17 +15,17 @@ import (
 
 // Handles password recovery and reset operations
 type PasswordService struct {
-    userReader       UserReader
+    userReader       UserGetter
     userWriter       UserWriter
-    resetTokenReader ResetTokenReader
+    resetTokenReader ResetTokenGetter
     resetTokenWriter ResetTokenWriter
     emailService     *EmailService
 }
 
 func NewPasswordService(
-    userReader UserReader,
+    userReader UserGetter,
     userWriter UserWriter,
-    resetTokenReader ResetTokenReader,
+    resetTokenReader ResetTokenGetter,
     resetTokenWriter ResetTokenWriter,
     emailService *EmailService,
 ) *PasswordService {

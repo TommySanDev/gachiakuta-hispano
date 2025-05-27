@@ -2,11 +2,11 @@ package user
 
 import (
     "github.com/go-chi/chi/v5"
-    ctxutil "github.com/TommySanDev/gachiakuta-hispano/internal/context"
+    "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
 )
 
 // User routes with authentication and authorization
-func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware *ctxutil.AuthMiddleware) {
+func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware *middleware.AuthMiddleware) {
     // Public authentication routes
     r.Route("/auth", func(r chi.Router) {
         r.Post("/register", h.Register)
@@ -50,4 +50,3 @@ func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware *ctxutil.AuthMiddl
         r.Delete("/{id}/permanent", h.DeleteUserPermanently)
     })
 }
-
