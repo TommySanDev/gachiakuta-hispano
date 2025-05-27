@@ -7,7 +7,7 @@ import (
     "github.com/go-chi/chi/v5/middleware"
     "go.uber.org/zap"
     
-    "github.com/yourusername/manga-fanpage/internal/logger"
+    "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
 )
 
 // RequestLogger logs HTTP request details

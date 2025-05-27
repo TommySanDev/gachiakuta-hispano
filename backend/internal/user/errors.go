@@ -1,4 +1,3 @@
-
 package user
 
 import "errors"

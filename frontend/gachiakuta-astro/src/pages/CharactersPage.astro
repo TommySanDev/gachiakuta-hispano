@@ -2,91 +2,63 @@
 import TVLayout from '../layouts/TVLayout.astro';
 import ContentCard from '../components/ContentCard.astro';
 import FilterButtons from '../components/FilterButtons.astro';
-import CircularMenu from '../components/CircularMenu.astro';
-import "../styles/global.css";
-
-
-const characters = [
-  {
-    id: 1,
-    name: "Rudo Surebrec",
-    description: "Un chico que fue condenado a caer al vacío.",
-    imageUrl: "/images/1-RudoSurebrec.jpeg",
-  },
-  {
-    id: 2,
-    name: "Zanka Nijik",
-    description: "Un luchador con un destino misterioso.",
-    imageUrl: "/images/2-Zanka.jpg",
-  },
-  {
-    id: 3,
-    name: "Enjin",
-    description: "El líder de los Cleaners.",
-    imageUrl: "/images/3-Enjin.jpeg",
-  },
-  {
-    id: 4,
-    name: "Riyo",
-    description: "Una joven con habilidades excepcionales.",
-    imageUrl: "/images/4-Riyo.jpeg",
-  }
-];
+import { getCharacters } from '../lib/api';
+import type { Character } from '../types/character';
 
 const filterButtons = [
-  { label: "Button", value: "all" },
-  { label: "Button", value: "protagonists" },
-  { label: "Button", value: "support" },
-  { label: "Button", value: "antagonists" },
-  { label: "Button", value: "others" }
+  { label: "All", value: "" },
+  { label: "Alive", value: "alive" },
+  { label: "Dead", value: "dead" },
+  { label: "Cleaners", value: "Cleaners" },
+  { label: "Humans", value: "Human" }
 ];
+
+const url = new URL(Astro.request.url);
+const searchParams = url.searchParams;
+
+const status = searchParams.get("status") || "";
+const affiliation = searchParams.get("affiliation") || "";
+const species = searchParams.get("species") || "";
+const page = parseInt(searchParams.get("page") || "1");
+
+const { data: characters } = await getCharacters({
+  status,
+  affiliation,
+  species,
+  page
+});
 ---
 
-<TVLayout title="Personajes - Gachiakuta Hispano">
+<TVLayout title="Characters - Gachiakuta Hispano">
   <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 pb-20">
-    <!-- Decoración de fondo -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute top-20 left-10 w-64 h-64 bg-red-700 rounded-full opacity-10"></div>
       <div class="absolute bottom-40 right-20 w-96 h-96 bg-red-600 rounded-full opacity-5"></div>
     </div>
-    
-    <!-- Título -->
+
     <div class="relative z-10 text-center py-10 mb-4">
       <h1 class="text-5xl font-bold text-white drop-shadow-md">
         <span class="inline-block transform hover:scale-105 transition-transform">Characters</span>
       </h1>
     </div>
-    
-    <!-- Botones de filtro -->
+
     <div class="relative z-20 max-w-5xl mx-auto my-6 mb-20">
       <FilterButtons buttons={filterButtons} />
     </div>
-    
-    <!-- Barra decorativa -->
+
     <div class="max-w-6xl mx-auto px-8 relative z-10">
       <div class="h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50 mb-16"></div>
     </div>
-    
-    <!-- Grid de cards -->
+
     <div class="relative z-10 grid grid-cols-2 gap-x-28 gap-y-32 max-w-6xl mx-auto px-8 place-items-start mt-16">
-      {characters.map(character => (
+      {characters.map((character: Character) => (
         <ContentCard 
           name={character.name}
           description={character.description}
-          imageUrl={character.imageUrl}
+          imageUrl={character.main_image}
         />
       ))}
     </div>
   </div>
 </TVLayout>
 
-<style>
-  @keyframes pulse {
-    0%, 100% { opacity: 0.05; }
-    50% { opacity: 0.1; }
-  }
-  
-  .bg-red-600 {
-    animation: pulse 8s infinite;
-  }
-</style>
