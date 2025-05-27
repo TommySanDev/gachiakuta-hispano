@@ -13,11 +13,11 @@ import (
 
 // Implements basic CRUD operations for users
 type CrudService struct {
-    reader UserReader
+    reader UserGetter
     writer UserWriter
 }
 
-func NewCrudService(reader UserReader, writer UserWriter) *CrudService {
+func NewCrudService(reader UserGetter, writer UserWriter) *CrudService {
     return &CrudService{
         reader: reader,
         writer: writer,

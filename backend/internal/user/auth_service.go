@@ -16,20 +16,29 @@ import (
 
 // Handles core authentication operations
 type AuthService struct {
-    userReader    Reader
-    userWriter    Writer
+    userReader    UserGetter
+    userWriter    UserWriter
+    sessionWriter SessionWriter
+    magicLinkReader MagicLinkGetter
+    magicLinkWriter MagicLinkWriter
     emailService  *EmailService
 }
 
 func NewAuthService(
-    userReader Reader,
-    userWriter Writer,
+    userReader UserGetter,
+    userWriter UserWriter,
+    sessionWriter SessionWriter,
+    magicLinkReader MagicLinkGetter,
+    magicLinkWriter MagicLinkWriter,
     emailService *EmailService,
 ) *AuthService {
     return &AuthService{
-        userReader:   userReader,
-        userWriter:   userWriter,
-        emailService: emailService,
+        userReader:     userReader,
+        userWriter:     userWriter,
+        sessionWriter:  sessionWriter,
+        magicLinkReader: magicLinkReader,
+        magicLinkWriter: magicLinkWriter,
+        emailService:   emailService,
     }
 }
 
@@ -171,7 +180,7 @@ func (s *AuthService) GenerateMagicLink(ctx context.Context, input MagicLinkLogi
         UpdatedAt: now,
     }
     
-    err = s.userWriter.Create(ctx, magicLink)
+    err = s.magicLinkWriter.Create(ctx, magicLink)
     if err != nil {
         log.Error("Error creating magic link", zap.Error(err))
         return fmt.Errorf("create magic link: %w", err)
@@ -194,7 +203,7 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
     log := logger.GetLogger(zap.String("service", "AuthService"), zap.String("method", "LoginWithMagicLink"))
     
     // Get magic link by token
-    magicLink, err := s.userReader.GetMagicLinkByToken(ctx, token)
+    magicLink, err := s.magicLinkReader.GetByToken(ctx, token)
     if err != nil {
         if err == ErrMagicLinkNotFound {
             return nil, ErrInvalidMagicLink
@@ -209,7 +218,7 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
     }
     
     // Mark as used
-    err = s.userWriter.MarkMagicLinkUsed(ctx, token)
+    err = s.magicLinkWriter.MarkAsUsed(ctx, magicLink.ID)
     if err != nil {
         log.Error("Error marking magic link as used", zap.Error(err))
         return nil, fmt.Errorf("mark magic link as used: %w", err)
@@ -253,7 +262,7 @@ func (s *AuthService) LoginWithMagicLink(ctx context.Context, token string) (*Au
 func (s *AuthService) Logout(ctx context.Context, sessionID string) error {
     log := logger.GetLogger(zap.String("service", "AuthService"), zap.String("method", "Logout"))
     
-    err := s.userWriter.Delete(ctx, sessionID)
+    err := s.sessionWriter.Delete(ctx, sessionID)
     if err != nil {
         log.Error("Error deleting session", zap.Error(err))
         return fmt.Errorf("delete session: %w", err)
@@ -322,7 +331,7 @@ func (s *AuthService) createSession(ctx context.Context, userID uint, userAgent 
         UpdatedAt: now,
     }
     
-    err = s.userWriter.Create(ctx, session)
+    err = s.sessionWriter.Create(ctx, session)
     if err != nil {
         return nil, nil, fmt.Errorf("create session: %w", err)
     }

@@ -11,10 +11,10 @@ import (
 
 // Implements advanced search and filtering operations for users
 type SearchService struct {
-    reader Reader
+    reader UserLister
 }
 
-func NewSearchService(reader Reader) *SearchService {
+func NewSearchService(reader UserLister) *SearchService {
     return &SearchService{
         reader: reader,
     }

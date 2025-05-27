@@ -43,6 +43,29 @@ type RecoveryCodeGetter interface {
     GetRecoveryCodeByCode(ctx context.Context, userID uint, code string) (*RecoveryCode, error)
 }
 
+// Composite interfaces for easier use
+type UserReader interface {
+    UserGetter
+    UserLister
+}
+
+type SessionReader interface {
+    SessionGetter
+}
+
+type MagicLinkReader interface {
+    MagicLinkGetter
+}
+
+type ResetTokenReader interface {
+    ResetTokenGetter
+}
+
+type TOTPReader interface {
+    TOTPGetter
+    RecoveryCodeGetter
+}
+
 // Reader composes all read interfaces
 type Reader interface {
     UserGetter
