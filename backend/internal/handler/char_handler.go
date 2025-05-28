@@ -1,211 +1,181 @@
-package handler
+package character
 
 import (
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
-
+	
 	"github.com/go-chi/chi/v5"
-	"github.com/TommySanDev/gachiakuta-hispano/internal/character"
-	"github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-	"go.uber.org/zap"
-	"context"
+	"github.com/jmoiron/sqlx"
 )
 
-// RegisterCharacterRoutes registers character-related routes to the router
-func RegisterCharacterRoutes(r chi.Router, repo *character.PostgresRepository) {
-	h := &CharacterHandler{repo: repo}
-
-	r.Route("/characters", func(r chi.Router) {
-		r.Post("/", h.Create)
-		r.Get("/{id}", h.GetByID)
-		r.Put("/{id}", h.Update)
-		r.Delete("/{id}", h.Delete)
-		r.Patch("/{id}/restore", h.Restore)
-		r.Delete("/{id}/permanent", h.DeletePermanently)
-	})
+// Implements HTTP handlers for character operations
+type CharacterController struct {
+	DB *sqlx.DB
 }
 
-// CharacterHandler handles HTTP requests for characters
-type CharacterHandler struct {
-	repo *character.PostgresRepository
+// Creates a new character controller
+func NewCharacterController(db *sqlx.DB) *CharacterController {
+	return &CharacterController{DB: db}
 }
 
-func (h *CharacterHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	id, err := getIDParam(r)
+// Retrieves all characters
+func (c *CharacterController) GetAll(w http.ResponseWriter, r *http.Request) {
+	var characters []Character
+	
+	err := c.DB.Select(&characters, "SELECT * FROM characters WHERE deleted_at IS NULL")
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid ID")
+		http.Error(w, "Failed to fetch characters", http.StatusInternalServerError)
 		return
 	}
-
-	char, err := h.repo.GetByID(ctx, id)
-	if err != nil {
-		respondWithError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, char)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(characters)
 }
 
-func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	var input character.CreateCharacterInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid input")
+// Retrieves a character by ID
+func (c *CharacterController) GetByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-
-	c := &character.Character{
-		Name:            input.Name,
-		NameJapanese:    input.NameJapanese,
-		MainImage:       input.MainImage,
-		Description:     input.Description,
-		Species:         input.Species,
-		Gender:          input.Gender,
-		Age:             input.Age,
-		Height:          input.Height,
-		Status:          input.Status,
-		Affiliation:     input.Affiliation,
-		Occupation:      input.Occupation,
-		BirthDate:       input.BirthDate,
-		BirthPlace:      input.BirthPlace,
-		Relatives:       input.Relatives,
-		FirstAppearance: input.FirstAppearance,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-
-	if err := h.repo.Create(ctx, c); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	
+	var character Character
+	err = c.DB.Get(&character, "SELECT * FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	if err != nil {
+		http.Error(w, "Character not found", http.StatusNotFound)
 		return
 	}
-
-	respondWithJSON(w, http.StatusCreated, c)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(character)
 }
 
-func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	id, err := getIDParam(r)
+// Creates a new character
+func (c *CharacterController) Create(w http.ResponseWriter, r *http.Request) {
+	var character Character
+	
+	if err := json.NewDecoder(r.Body).Decode(&character); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Set creation time
+	now := time.Now()
+	character.CreatedAt = now
+	character.UpdatedAt = now
+	
+	query := `INSERT INTO characters (
+		name, name_japanese, main_image, description, species, gender, age,
+		height, status, affiliation, occupation, birth_date, birth_place,
+		relatives, first_appearance, created_at, updated_at
+	) VALUES (
+		:name, :name_japanese, :main_image, :description, :species, :gender, :age,
+		:height, :status, :affiliation, :occupation, :birth_date, :birth_place,
+		:relatives, :first_appearance, :created_at, :updated_at
+	) RETURNING id`
+	
+	rows, err := c.DB.NamedQuery(query, character)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid ID")
+		http.Error(w, "Failed to create character", http.StatusInternalServerError)
 		return
 	}
-
-	var input character.UpdateCharacterInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid input")
-		return
+	
+	if rows.Next() {
+		var id uint
+		rows.Scan(&id)
+		character.ID = id
 	}
-
-	existing, err := h.repo.GetByID(ctx, id)
-	if err != nil {
-		respondWithError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	// Apply updates if fields are present
-	if input.Name != nil {
-		existing.Name = *input.Name
-	}
-	if input.NameJapanese != nil {
-		existing.NameJapanese = *input.NameJapanese
-	}
-	if input.MainImage != nil {
-		existing.MainImage = *input.MainImage
-	}
-	if input.Description != nil {
-		existing.Description = *input.Description
-	}
-	if input.Species != nil {
-		existing.Species = *input.Species
-	}
-	if input.Gender != nil {
-		existing.Gender = *input.Gender
-	}
-	if input.Age != nil {
-		existing.Age = *input.Age
-	}
-	if input.Height != nil {
-		existing.Height = *input.Height
-	}
-	if input.Status != nil {
-		existing.Status = *input.Status
-	}
-	if input.Affiliation != nil {
-		existing.Affiliation = *input.Affiliation
-	}
-	if input.Occupation != nil {
-		existing.Occupation = *input.Occupation
-	}
-	if input.BirthDate != nil {
-		existing.BirthDate = *input.BirthDate
-	}
-	if input.BirthPlace != nil {
-		existing.BirthPlace = *input.BirthPlace
-	}
-	if input.Relatives != nil {
-		existing.Relatives = *input.Relatives
-	}
-	if input.FirstAppearance != nil {
-		existing.FirstAppearance = *input.FirstAppearance
-	}
-
-	existing.UpdatedAt = time.Now()
-
-	if err := h.repo.Update(ctx, existing); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, existing)
+	rows.Close()
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(character)
 }
 
-func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	id, err := getIDParam(r)
+// Updates an existing character
+func (c *CharacterController) Update(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid ID")
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-
-	if err := h.repo.Delete(ctx, id); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	
+	var character Character
+	if err := json.NewDecoder(r.Body).Decode(&character); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	w.WriteHeader(http.StatusNoContent)
+	
+	// Check if character exists
+	var exists bool
+	err = c.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	if err != nil || !exists {
+		http.Error(w, "Character not found", http.StatusNotFound)
+		return
+	}
+	
+	// Set ID and update time
+	character.ID = uint(id)
+	character.UpdatedAt = time.Now()
+	
+	query := `UPDATE characters SET
+		name = :name, 
+		name_japanese = :name_japanese,
+		main_image = :main_image,
+		description = :description,
+		species = :species,
+		gender = :gender,
+		age = :age,
+		height = :height,
+		status = :status,
+		affiliation = :affiliation,
+		occupation = :occupation,
+		birth_date = :birth_date,
+		birth_place = :birth_place,
+		relatives = :relatives,
+		first_appearance = :first_appearance,
+		updated_at = :updated_at
+	WHERE id = :id AND deleted_at IS NULL`
+	
+	_, err = c.DB.NamedExec(query, character)
+	if err != nil {
+		http.Error(w, "Failed to update character", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(character)
 }
 
-func (h *CharacterHandler) Restore(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	id, err := getIDParam(r)
+// Deletes a character (soft delete)
+func (c *CharacterController) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid ID")
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-
-	if err := h.repo.Restore(ctx, id); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	
+	// Check if character exists
+	var exists bool
+	err = c.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	if err != nil || !exists {
+		http.Error(w, "Character not found", http.StatusNotFound)
 		return
 	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *CharacterHandler) DeletePermanently(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	id, err := getIDParam(r)
+	
+	// Soft delete
+	now := time.Now()
+	_, err = c.DB.Exec("UPDATE characters SET deleted_at = ? WHERE id = ?", now, id)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid ID")
+		http.Error(w, "Failed to delete character", http.StatusInternalServerError)
 		return
 	}
-
-	if err := h.repo.DeletePermanently(ctx, id); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
+	
 	w.WriteHeader(http.StatusNoContent)
 }
