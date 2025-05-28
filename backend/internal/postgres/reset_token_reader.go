@@ -25,26 +25,7 @@ func NewResetTokenReader(db *sqlx.DB) *ResetTokenReader {
 }
 
 func (r *ResetTokenReader) GetByToken(ctx context.Context, token string) (*user.ResetToken, error) {
-    log := logger.GetLogger(zap.String("repository", "ResetTokenReader"), zap.String("method", "GetByToken"))
-    
-    query := `
-        SELECT id, user_id, token, used, expires_at, created_at, updated_at
-        FROM reset_tokens
-        WHERE token = $1 AND used = false
-    `
-
-    var rt user.ResetToken
-    err := r.db.GetContext(ctx, &rt, query, token)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            log.Debug("Reset token not found", zap.String("token_prefix", token[:8]+"..."))
-            return nil, user.ErrResetTokenNotFound
-        }
-        log.Error("Database error", zap.Error(err))
-        return nil, fmt.Errorf("database error: %w", err)
-    }
-
-    return &rt, nil
+    return r.GetResetTokenByToken(ctx, token)
 }
 
 func (r *ResetTokenReader) GetActiveByUserID(ctx context.Context, userID uint) ([]*user.ResetToken, error) {

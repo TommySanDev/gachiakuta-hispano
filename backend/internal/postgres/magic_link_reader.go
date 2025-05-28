@@ -25,26 +25,7 @@ func NewMagicLinkReader(db *sqlx.DB) *MagicLinkReader {
 }
 
 func (r *MagicLinkReader) GetByToken(ctx context.Context, token string) (*user.MagicLink, error) {
-    log := logger.GetLogger(zap.String("repository", "MagicLinkReader"), zap.String("method", "GetByToken"))
-    
-    query := `
-        SELECT id, user_id, token, used, expires_at, created_at, updated_at
-        FROM magic_links
-        WHERE token = $1 AND used = false
-    `
-
-    var ml user.MagicLink
-    err := r.db.GetContext(ctx, &ml, query, token)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            log.Debug("Magic link not found", zap.String("token_prefix", token[:8]+"..."))
-            return nil, user.ErrMagicLinkNotFound
-        }
-        log.Error("Database error", zap.Error(err))
-        return nil, fmt.Errorf("database error: %w", err)
-    }
-
-    return &ml, nil
+    return r.GetMagicLinkByToken(ctx, token)
 }
 
 func (r *MagicLinkReader) GetActiveByUserID(ctx context.Context, userID uint) ([]*user.MagicLink, error) {

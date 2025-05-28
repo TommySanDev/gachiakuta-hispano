@@ -25,26 +25,7 @@ func NewTOTPReader(db *sqlx.DB) *TOTPReader {
 }
 
 func (r *TOTPReader) GetByUserID(ctx context.Context, userID uint) (*user.TOTPSecret, error) {
-    log := logger.GetLogger(zap.String("repository", "TOTPReader"), zap.String("method", "GetByUserID"))
-    
-    query := `
-        SELECT id, user_id, secret, verified, created_at, updated_at
-        FROM totp_secrets
-        WHERE user_id = $1
-    `
-
-    var totp user.TOTPSecret
-    err := r.db.GetContext(ctx, &totp, query, userID)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            log.Debug("TOTP secret not found", zap.Uint("user_id", userID))
-            return nil, user.ErrTOTPNotFound
-        }
-        log.Error("Database error", zap.Error(err))
-        return nil, fmt.Errorf("database error: %w", err)
-    }
-
-    return &totp, nil
+    return r.GetTOTPByUserID(ctx, userID)
 }
 
 func (r *TOTPReader) GetRecoveryCodes(ctx context.Context, userID uint) ([]*user.RecoveryCode, error) {
