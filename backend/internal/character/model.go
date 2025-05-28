@@ -1,12 +1,11 @@
 package character
 
 import (
-	"context"
 	"errors"
 	"time"
 )
 
-// Represents a character in the Gachiakuta universe
+// Character represents a character in the Gachiakuta universe
 type Character struct {
 	ID              uint       `json:"id" db:"id"`
 	Name            string     `json:"name" db:"name"`
@@ -27,24 +26,6 @@ type Character struct {
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time  `json:"-" db:"updated_at"`        // Hidden in JSON
 	DeletedAt       *time.Time `json:"-" db:"deleted_at"`        // Hidden in JSON
-}
-
-// CharacterHandler defines HTTP operations for character resources
-type CharacterHandler interface {
-	// Retrieves all characters
-	GetAll(c echo.Context) error
-	
-	// Retrieves a specific character by ID
-	GetByID(c echo.Context) error
-	
-	// Creates a new character
-	Create(c echo.Context) error
-	
-	// Updates an existing character
-	Update(c echo.Context) error
-	
-	// Deletes a character (soft delete)
-	Delete(c echo.Context) error
 }
 
 // Common errors

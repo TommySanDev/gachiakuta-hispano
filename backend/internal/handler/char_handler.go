@@ -1,72 +1,74 @@
-package character
+package handler
 
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 	
-	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/character"
 )
 
-// Implements HTTP handlers for character operations
-type CharacterController struct {
+// CharacterHandler implements HTTP handlers for character operations
+type CharacterHandler struct {
 	DB *sqlx.DB
 }
 
-// Creates a new character controller
-func NewCharacterController(db *sqlx.DB) *CharacterController {
-	return &CharacterController{DB: db}
+// NewCharacterHandler creates a new character handler
+func NewCharacterHandler(db *sqlx.DB) *CharacterHandler {
+	return &CharacterHandler{DB: db}
 }
 
-// Retrieves all characters
-func (c *CharacterController) GetAll(w http.ResponseWriter, r *http.Request) {
-	var characters []Character
+// GetAll retrieves all characters
+func (h *CharacterHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	var characters []character.Character
 	
-	err := c.DB.Select(&characters, "SELECT * FROM characters WHERE deleted_at IS NULL")
+	err := h.DB.Select(&characters, "SELECT * FROM characters WHERE deleted_at IS NULL ORDER BY created_at DESC")
 	if err != nil {
-		http.Error(w, "Failed to fetch characters", http.StatusInternalServerError)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch characters")
 		return
 	}
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(characters)
+	RespondWithJSON(w, http.StatusOK, characters)
 }
 
-// Retrieves a character by ID
-func (c *CharacterController) GetByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+// GetByID retrieves a character by ID
+func (h *CharacterHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 	
-	var character Character
-	err = c.DB.Get(&character, "SELECT * FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	var char character.Character
+	err = h.DB.Get(&char, "SELECT * FROM characters WHERE id = $1 AND deleted_at IS NULL", id)
 	if err != nil {
-		http.Error(w, "Character not found", http.StatusNotFound)
+		RespondWithError(w, http.StatusNotFound, "Character not found")
 		return
 	}
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(character)
+	RespondWithJSON(w, http.StatusOK, char)
 }
 
-// Creates a new character
-func (c *CharacterController) Create(w http.ResponseWriter, r *http.Request) {
-	var character Character
+// Create creates a new character
+func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var char character.Character
 	
-	if err := json.NewDecoder(r.Body).Decode(&character); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&char); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	
-	// Set creation time
+	// Basic validation
+	if char.Name == "" {
+		RespondWithError(w, http.StatusBadRequest, "Name is required")
+		return
+	}
+	
+	// Set timestamps
 	now := time.Now()
-	character.CreatedAt = now
-	character.UpdatedAt = now
+	char.CreatedAt = now
+	char.UpdatedAt = now
 	
 	query := `INSERT INTO characters (
 		name, name_japanese, main_image, description, species, gender, age,
@@ -78,50 +80,47 @@ func (c *CharacterController) Create(w http.ResponseWriter, r *http.Request) {
 		:relatives, :first_appearance, :created_at, :updated_at
 	) RETURNING id`
 	
-	rows, err := c.DB.NamedQuery(query, character)
+	rows, err := h.DB.NamedQuery(query, char)
 	if err != nil {
-		http.Error(w, "Failed to create character", http.StatusInternalServerError)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to create character")
 		return
 	}
+	defer rows.Close()
 	
 	if rows.Next() {
 		var id uint
 		rows.Scan(&id)
-		character.ID = id
+		char.ID = id
 	}
-	rows.Close()
 	
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(character)
+	RespondWithJSON(w, http.StatusCreated, char)
 }
 
-// Updates an existing character
-func (c *CharacterController) Update(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+// Update updates an existing character
+func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 	
-	var character Character
-	if err := json.NewDecoder(r.Body).Decode(&character); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var char character.Character
+	if err := json.NewDecoder(r.Body).Decode(&char); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	
 	// Check if character exists
 	var exists bool
-	err = c.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = $1 AND deleted_at IS NULL", id)
 	if err != nil || !exists {
-		http.Error(w, "Character not found", http.StatusNotFound)
+		RespondWithError(w, http.StatusNotFound, "Character not found")
 		return
 	}
 	
-	// Set ID and update time
-	character.ID = uint(id)
-	character.UpdatedAt = time.Now()
+	// Set ID and update timestamp
+	char.ID = id
+	char.UpdatedAt = time.Now()
 	
 	query := `UPDATE characters SET
 		name = :name, 
@@ -142,38 +141,36 @@ func (c *CharacterController) Update(w http.ResponseWriter, r *http.Request) {
 		updated_at = :updated_at
 	WHERE id = :id AND deleted_at IS NULL`
 	
-	_, err = c.DB.NamedExec(query, character)
+	_, err = h.DB.NamedExec(query, char)
 	if err != nil {
-		http.Error(w, "Failed to update character", http.StatusInternalServerError)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update character")
 		return
 	}
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(character)
+	RespondWithJSON(w, http.StatusOK, char)
 }
 
-// Deletes a character (soft delete)
-func (c *CharacterController) Delete(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+// Delete deletes a character (soft delete)
+func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
 		return
 	}
 	
 	// Check if character exists
 	var exists bool
-	err = c.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = ? AND deleted_at IS NULL", id)
+	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = $1 AND deleted_at IS NULL", id)
 	if err != nil || !exists {
-		http.Error(w, "Character not found", http.StatusNotFound)
+		RespondWithError(w, http.StatusNotFound, "Character not found")
 		return
 	}
 	
 	// Soft delete
 	now := time.Now()
-	_, err = c.DB.Exec("UPDATE characters SET deleted_at = ? WHERE id = ?", now, id)
+	_, err = h.DB.Exec("UPDATE characters SET deleted_at = $1 WHERE id = $2", now, id)
 	if err != nil {
-		http.Error(w, "Failed to delete character", http.StatusInternalServerError)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to delete character")
 		return
 	}
 	

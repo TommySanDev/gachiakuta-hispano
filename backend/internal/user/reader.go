@@ -21,21 +21,24 @@ type SessionGetter interface {
     GetActiveSessionsByUserID(ctx context.Context, userID uint) ([]*Session, error)
 }
 
-// Interfaces for reading magic link data
+// Interfaces for reading magic link data - Fixed to include GetByToken method
 type MagicLinkGetter interface {
     GetMagicLinkByToken(ctx context.Context, token string) (*MagicLink, error)
     GetActiveMagicLinkByUserID(ctx context.Context, userID uint) (*MagicLink, error)
+    GetByToken(ctx context.Context, token string) (*MagicLink, error) // Added this method
 }
 
-// Interfaces for reading reset token data
+// Interfaces for reading reset token data - Fixed to include GetByToken method
 type ResetTokenGetter interface {
     GetResetTokenByToken(ctx context.Context, token string) (*ResetToken, error)
     GetActiveResetTokenByUserID(ctx context.Context, userID uint) (*ResetToken, error)
+    GetByToken(ctx context.Context, token string) (*ResetToken, error) // Added this method
 }
 
-// Interfaces for reading TOTP data
+// Interfaces for reading TOTP data - Fixed to include GetByUserID method
 type TOTPGetter interface {
     GetTOTPByUserID(ctx context.Context, userID uint) (*TOTPSecret, error)
+    GetByUserID(ctx context.Context, userID uint) (*TOTPSecret, error) // Added this method
 }
 
 type RecoveryCodeGetter interface {

@@ -283,7 +283,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/password
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
         return
@@ -335,9 +335,32 @@ func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
     respondJSON(w, http.StatusOK, setupResponse)
 }
 
+// POST /users/2fa/setup
+func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
+    user, ok := auth.GetUserFromContext(r.Context())
+    if !ok {
+        http.Error(w, "User not found", http.StatusUnauthorized)
+        return
+    }
+
+    setupResponse, err := h.totpService.SetupTOTP(r.Context(), user.ID)
+    if err != nil {
+        switch {
+        case errors.Is(err, ErrTOTPAlreadyEnabled):
+            http.Error(w, "2FA already enabled", http.StatusConflict)
+        default:
+            logger.Error("Error setting up 2FA", zap.Error(err))
+            http.Error(w, "Internal server error", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    respondJSON(w, http.StatusOK, setupResponse)
+}
+
 // POST /users/2fa/verify
 func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
         return
@@ -370,7 +393,7 @@ func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /users/2fa
 func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
         return
@@ -390,7 +413,7 @@ func (h *Handler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 
 // POST /users/2fa/recovery-codes
 func (h *Handler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
-    user, ok := middleware.GetUserFromContext(r.Context())
+    user, ok := auth.GetUserFromContext(r.Context())
     if !ok {
         http.Error(w, "User not found", http.StatusUnauthorized)
         return
