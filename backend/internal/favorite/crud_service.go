@@ -7,6 +7,8 @@ import (
     "time"
 
     "go.uber.org/zap"
+    
+    "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
 )
 
 // Implements basic operations for favorites
@@ -67,4 +69,3 @@ func (s *CrudService) List(ctx context.Context, userID uint) ([]*Favorite, error
 
     return s.reader.ListByUser(ctx, userID)
 }
-
