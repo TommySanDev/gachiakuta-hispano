@@ -5,8 +5,6 @@ import (
     "fmt"
     "time"
 
-    "go.uber.org/zap"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
 )
 
 // Implements CRUD operations for comments
