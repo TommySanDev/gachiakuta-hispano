@@ -11,18 +11,18 @@ import (
 	"github.com/TommySanDev/gachiakuta-hispano/internal/handler"
 )
 
-// RegisterRoutes sets up all application routes
+// RegisterRoutes configura todas las rutas de la aplicación
 func RegisterRoutes(db *sqlx.DB) http.Handler {
 	router := chi.NewRouter()
 	
-	// Common middleware
+	// Middleware común
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Timeout(30 * time.Second))
 	
-	// CORS for development
+	// CORS para desarrollo
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -44,16 +44,27 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 	
-	// Initialize handlers
+	// Inicializar manejadores
 	characterHandler := handler.NewCharacterHandler(db)
+	vitalInstrumentHandler := handler.NewVitalInstrumentHandler(db)
 	
-	// Character routes
+	// Rutas de Character
 	router.Route("/api/characters", func(r chi.Router) {
 		r.Get("/", characterHandler.GetAll)
 		r.Post("/", characterHandler.Create)
 		r.Get("/{id}", characterHandler.GetByID)
 		r.Put("/{id}", characterHandler.Update)
 		r.Delete("/{id}", characterHandler.Delete)
+	})
+	
+	// Rutas de VitalInstrument
+	router.Route("/api/vital-instruments", func(r chi.Router) {
+		r.Get("/", vitalInstrumentHandler.GetAll)
+		r.Post("/", vitalInstrumentHandler.Create)
+		r.Get("/{id}", vitalInstrumentHandler.GetByID)
+		r.Put("/{id}", vitalInstrumentHandler.Update)
+		r.Delete("/{id}", vitalInstrumentHandler.Delete)
+		r.Get("/character/{id}", vitalInstrumentHandler.ListByCharacter)
 	})
 	
 	return router
