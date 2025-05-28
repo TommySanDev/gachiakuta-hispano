@@ -7,7 +7,6 @@ import (
     "time"
 
     "go.uber.org/zap"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
 )
 
 // Implements basic operations for favorites

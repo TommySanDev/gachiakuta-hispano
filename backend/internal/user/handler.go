@@ -11,6 +11,7 @@ import (
 
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
     "github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
+    "github.com/TommySanDev/gachiakuta-hispano/internal/auth"
 )
 
 type Handler struct {

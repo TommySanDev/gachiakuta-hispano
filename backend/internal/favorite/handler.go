@@ -5,7 +5,6 @@ import (
     "errors"
     "net/http"
 
-    "github.com/go-chi/chi/v5"
     "github.com/TommySanDev/gachiakuta-hispano/internal/auth"
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
     "go.uber.org/zap"
