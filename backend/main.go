@@ -18,6 +18,7 @@ import (
 	"github.com/TommySanDev/gachiakuta-hispano/internal/postgres"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/vitalinstrument"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/auth"
 )
 
 func main() {
@@ -109,10 +110,10 @@ func main() {
 	favoriteHandler := favorite.NewHandler(favoriteCrudService)
 	userHandler := user.NewHandler(userAuthService, userCrudService, userSearchService, userPasswordService, userTOTPService)
 
-  userAdapter := user.NewUserAdapter(userReader)
-  sessionAdapter := user.NewSessionAdapter(sessionReader)
+    userAdapter := user.NewUserAdapter(userReader)
+    sessionAdapter := user.NewSessionAdapter(sessionReader)
 
-  authMiddleware := middleware.NewAuthMiddleware(sessionAdapter, userAdapter)
+    authMiddleware := customMiddleware.NewAuthMiddleware(sessionAdapter, userAdapter)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -168,4 +169,3 @@ func main() {
 		log.Fatal("Server startup error", zap.Error(err))
 	}
 }
-

@@ -122,7 +122,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthRespons
     }
     
     // Create session
-    session, tokens, err := s.createSession(ctx, user.ID, "")
+    _, tokens, err := s.createSession(ctx, user.ID, "")
     if err != nil {
         log.Error("Error creating session", zap.Error(err))
         return nil, fmt.Errorf("create session: %w", err)
