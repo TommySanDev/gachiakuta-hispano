@@ -131,8 +131,8 @@ func (h *TOTPHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate TOTP code
-	valid := totp.Validate(input.Code, totpSecret.Secret, time.Now())
+	// Validate TOTP code - Corrección: solo pasar código y secreto
+	valid := totp.Validate(input.Code, totpSecret.Secret)
 	if !valid {
 		RespondWithError(w, http.StatusBadRequest, "Invalid verification code")
 		return
@@ -304,8 +304,8 @@ func (h *TOTPHandler) ValidateTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate TOTP code
-	valid := totp.Validate(input.Code, totpSecret.Secret, time.Now())
+	// Validate TOTP code - Corrección: solo pasar código y secreto
+	valid := totp.Validate(input.Code, totpSecret.Secret)
 	if !valid {
 		RespondWithError(w, http.StatusBadRequest, "Invalid TOTP code")
 		return
