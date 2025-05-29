@@ -52,16 +52,18 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 	emailService := user.NewEmailService(config.GetEmailConfig())
 	authMW := mw.NewAuthMiddleware(db, tokenService)
 	
-	// Initialize handlers
-	characterHandler := handler.NewCharacterHandler(db)
-	vitalInstrumentHandler := handler.NewVitalInstrumentHandler(db)
-	chapterHandler := handler.NewChapterHandler(db)
-	commentHandler := handler.NewCommentHandler(db)
-	favoriteHandler := handler.NewFavoriteHandler(db)
-	authHandler := handler.NewAuthHandler(db, tokenService, emailService)
-	userHandler := handler.NewUserHandler(db)
-	passwordHandler := handler.NewPasswordHandler(db, tokenService, emailService)
-	totpHandler := handler.NewTOTPHandler(db)
+	// Initialize handlers - TODOS REFACTORIZADOS SIN DB
+	characterHandler := handler.NewCharacterHandler()
+	vitalInstrumentHandler := handler.NewVitalInstrumentHandler()
+	chapterHandler := handler.NewChapterHandler()
+	commentHandler := handler.NewCommentHandler()
+	favoriteHandler := handler.NewFavoriteHandler()
+	userHandler := handler.NewUserHandler()
+	totpHandler := handler.NewTOTPHandler()
+	
+	// Handlers que SÍ necesitan servicios externos
+	authHandler := handler.NewAuthHandler(tokenService, emailService)
+	passwordHandler := handler.NewPasswordHandler(tokenService, emailService)
 	
 	// === PUBLIC ROUTES (no authentication required) ===
 	
