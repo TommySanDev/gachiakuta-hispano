@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vk-rv/pvx"
+	"github.com/o1egl/paseto/v2"
 )
 
 // TokenService handles Paseto token operations
@@ -42,8 +42,8 @@ func (ts *TokenService) GenerateToken(user *User, duration time.Duration) (strin
 		ExpiresAt: now.Add(duration).Unix(),
 	}
 
-	// Create Paseto v4.local token (symmetric encryption)
-	token, err := pvx.NewPV4Local().Encrypt(ts.secretKey, claims)
+	// Create Paseto v2.local token (symmetric encryption)
+	token, err := paseto.NewV2().Encrypt(ts.secretKey, claims, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate token: %w", err)
 	}
@@ -54,9 +54,10 @@ func (ts *TokenService) GenerateToken(user *User, duration time.Duration) (strin
 // ValidateToken validates and parses a Paseto token
 func (ts *TokenService) ValidateToken(tokenString string) (*TokenClaims, error) {
 	var claims TokenClaims
+	var footer string
 	
 	// Decrypt and parse Paseto token
-	err := pvx.NewPV4Local().Decrypt(tokenString, ts.secretKey).ScanClaims(&claims)
+	err := paseto.NewV2().Decrypt(tokenString, ts.secretKey, &claims, &footer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
