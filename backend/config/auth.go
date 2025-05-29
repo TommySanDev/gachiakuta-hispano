@@ -8,7 +8,6 @@ import (
     "go.uber.org/zap"
     "github.com/joho/godotenv" 
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
-    "github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
 
 // Authentication configuration settings
@@ -46,6 +45,16 @@ type SMTPConfig struct {
     Password string
     From     string
     TLS      bool
+}
+
+// EmailConfig represents email service configuration
+type EmailConfig struct {
+    Host     string
+    Port     string
+    Username string
+    Password string
+    From     string
+    BaseURL  string
 }
 
 // Global auth configuration
@@ -152,12 +161,12 @@ func LoadSMTPConfig() *SMTPConfig {
 }
 
 // GetEmailConfig creates email service configuration
-func GetEmailConfig() user.EmailConfig {
+func GetEmailConfig() EmailConfig {
     if SMTP == nil {
         logger.GetLogger().Fatal("SMTP configuration not loaded")
     }
     
-    return user.EmailConfig{
+    return EmailConfig{
         Host:     SMTP.Host,
         Port:     SMTP.Port,
         Username: SMTP.Username,
