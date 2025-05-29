@@ -17,13 +17,15 @@ import (
 type PasswordHandler struct {
 	DB           *sqlx.DB
 	TokenService *user.TokenService
+	EmailService *user.EmailService
 }
 
 // NewPasswordHandler creates a new password handler
-func NewPasswordHandler(db *sqlx.DB, tokenService *user.TokenService) *PasswordHandler {
+func NewPasswordHandler(db *sqlx.DB, tokenService *user.TokenService, emailService *user.EmailService) *PasswordHandler {
 	return &PasswordHandler{
 		DB:           db,
 		TokenService: tokenService,
+		EmailService: emailService,
 	}
 }
 
@@ -87,11 +89,18 @@ func (h *PasswordHandler) RequestMagicLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// TODO: Send email with magic link
-	// For now, return success message (in production, remove the token from response)
+	// Send magic link email
+	if h.EmailService != nil && h.EmailService.IsConfigured() {
+		err = h.EmailService.SendMagicLink(u.Email, token)
+		if err != nil {
+			// Log error but don't fail the request
+			RespondWithError(w, http.StatusInternalServerError, "Failed to send magic link email")
+			return
+		}
+	}
+
 	RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Magic link sent to your email",
-		"token":   token, // Remove this in production
 	})
 }
 
@@ -221,10 +230,18 @@ func (h *PasswordHandler) RequestPasswordReset(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// TODO: Send email with reset link
+	// Send password reset email
+	if h.EmailService != nil && h.EmailService.IsConfigured() {
+		err = h.EmailService.SendPasswordReset(u.Email, token)
+		if err != nil {
+			// Log error but don't fail the request
+			RespondWithError(w, http.StatusInternalServerError, "Failed to send reset email")
+			return
+		}
+	}
+
 	RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "If your email exists, you will receive reset instructions",
-		"token":   token, // Remove this in production
 	})
 }
 
