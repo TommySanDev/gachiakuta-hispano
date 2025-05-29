@@ -4,27 +4,21 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 	
-	"github.com/jmoiron/sqlx"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/chapter"
 )
 
 // ChapterHandler implements HTTP handlers for chapter operations
-type ChapterHandler struct {
-	DB *sqlx.DB
-}
+type ChapterHandler struct{}
 
 // NewChapterHandler creates a new chapter handler
-func NewChapterHandler(db *sqlx.DB) *ChapterHandler {
-	return &ChapterHandler{DB: db}
+func NewChapterHandler() *ChapterHandler {
+	return &ChapterHandler{}
 }
 
 // GetAll retrieves all chapters
 func (h *ChapterHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	var chapters []chapter.Chapter
-	
-	err := h.DB.Select(&chapters, "SELECT * FROM chapters WHERE deleted_at IS NULL ORDER BY created_at DESC")
+	chapters, err := chapter.GetAll()
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch chapters")
 		return
@@ -41,10 +35,13 @@ func (h *ChapterHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var chap chapter.Chapter
-	err = h.DB.Get(&chap, "SELECT * FROM chapters WHERE id = $1 AND deleted_at IS NULL", id)
+	chap, err := chapter.GetByID(id)
 	if err != nil {
-		RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to fetch chapter")
+		}
 		return
 	}
 	
@@ -60,15 +57,20 @@ func (h *ChapterHandler) GetByNumber(w http.ResponseWriter, r *http.Request) {
 	}
 
 	number, err := strconv.Atoi(numberStr)
-	if err != nil || number <= 0 {
+	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid chapter number")
 		return
 	}
 	
-	var chap chapter.Chapter
-	err = h.DB.Get(&chap, "SELECT * FROM chapters WHERE number = $1 AND deleted_at IS NULL", number)
+	chap, err := chapter.GetByNumber(number)
 	if err != nil {
-		RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		} else if err == chapter.ErrInvalidInput {
+			RespondWithError(w, http.StatusBadRequest, "Invalid chapter number")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to fetch chapter")
+		}
 		return
 	}
 	
@@ -84,42 +86,14 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Basic validation
-	if chap.Title == "" {
-		RespondWithError(w, http.StatusBadRequest, "Title is required")
-		return
-	}
-	if chap.Number <= 0 {
-		RespondWithError(w, http.StatusBadRequest, "Number must be positive")
-		return
-	}
-	if chap.Image == "" {
-		RespondWithError(w, http.StatusBadRequest, "Image is required")
-		return
-	}
-	
-	// Set timestamps
-	now := time.Now()
-	chap.CreatedAt = now
-	chap.UpdatedAt = now
-	
-	query := `INSERT INTO chapters (
-		title, number, image, created_at, updated_at
-	) VALUES (
-		:title, :number, :image, :created_at, :updated_at
-	) RETURNING id`
-	
-	rows, err := h.DB.NamedQuery(query, chap)
+	err := chapter.Create(&chap)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to create chapter")
+		if err == chapter.ErrInvalidInput {
+			RespondWithError(w, http.StatusBadRequest, "Title, number and image are required")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to create chapter")
+		}
 		return
-	}
-	defer rows.Close()
-	
-	if rows.Next() {
-		var id uint
-		rows.Scan(&id)
-		chap.ID = id
 	}
 	
 	RespondWithJSON(w, http.StatusCreated, chap)
@@ -139,28 +113,13 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Check if chapter exists
-	var exists bool
-	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM chapters WHERE id = $1 AND deleted_at IS NULL", id)
-	if err != nil || !exists {
-		RespondWithError(w, http.StatusNotFound, "Chapter not found")
-		return
-	}
-	
-	// Set ID and update timestamp
-	chap.ID = id
-	chap.UpdatedAt = time.Now()
-	
-	query := `UPDATE chapters SET
-		title = :title, 
-		number = :number,
-		image = :image,
-		updated_at = :updated_at
-	WHERE id = :id AND deleted_at IS NULL`
-	
-	_, err = h.DB.NamedExec(query, chap)
+	err = chapter.Update(id, &chap)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapter")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to update chapter")
+		}
 		return
 	}
 	
@@ -175,19 +134,13 @@ func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Check if chapter exists
-	var exists bool
-	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM chapters WHERE id = $1 AND deleted_at IS NULL", id)
-	if err != nil || !exists {
-		RespondWithError(w, http.StatusNotFound, "Chapter not found")
-		return
-	}
-	
-	// Soft delete
-	now := time.Now()
-	_, err = h.DB.Exec("UPDATE chapters SET deleted_at = $1 WHERE id = $2", now, id)
+	err = chapter.Delete(id)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to delete chapter")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to delete chapter")
+		}
 		return
 	}
 	
@@ -202,16 +155,13 @@ func (h *ChapterHandler) DeletePermanently(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	
-	// Delete permanently
-	result, err := h.DB.Exec("DELETE FROM chapters WHERE id = $1", id)
+	err = chapter.DeletePermanently(id)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to delete chapter permanently")
-		return
-	}
-	
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to delete chapter permanently")
+		}
 		return
 	}
 	
@@ -226,17 +176,13 @@ func (h *ChapterHandler) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Restore chapter
-	result, err := h.DB.Exec("UPDATE chapters SET deleted_at = NULL, updated_at = $1 WHERE id = $2 AND deleted_at IS NOT NULL", 
-		time.Now(), id)
+	err = chapter.Restore(id)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to restore chapter")
-		return
-	}
-	
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		RespondWithError(w, http.StatusNotFound, "Deleted chapter not found")
+		if err == chapter.ErrChapterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Deleted chapter not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to restore chapter")
+		}
 		return
 	}
 	

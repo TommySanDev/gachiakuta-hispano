@@ -3,27 +3,21 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 	
-	"github.com/jmoiron/sqlx"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/vitalinstrument"
 )
 
 // VitalInstrumentHandler implementa manejadores HTTP para operaciones de instrumentos vitales
-type VitalInstrumentHandler struct {
-	DB *sqlx.DB
-}
+type VitalInstrumentHandler struct{}
 
 // NewVitalInstrumentHandler crea un nuevo manejador de instrumentos vitales
-func NewVitalInstrumentHandler(db *sqlx.DB) *VitalInstrumentHandler {
-	return &VitalInstrumentHandler{DB: db}
+func NewVitalInstrumentHandler() *VitalInstrumentHandler {
+	return &VitalInstrumentHandler{}
 }
 
 // GetAll recupera todos los instrumentos vitales
 func (h *VitalInstrumentHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	var instruments []vitalinstrument.VitalInstrument
-	
-	err := h.DB.Select(&instruments, "SELECT * FROM vital_instruments WHERE deleted_at IS NULL ORDER BY created_at DESC")
+	instruments, err := vitalinstrument.GetAll()
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch vital instruments")
 		return
@@ -40,10 +34,13 @@ func (h *VitalInstrumentHandler) GetByID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	var vi vitalinstrument.VitalInstrument
-	err = h.DB.Get(&vi, "SELECT * FROM vital_instruments WHERE id = $1 AND deleted_at IS NULL", id)
+	vi, err := vitalinstrument.GetByID(id)
 	if err != nil {
-		RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
+		if err == vitalinstrument.ErrVitalInstrumentNotFound {
+			RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to fetch vital instrument")
+		}
 		return
 	}
 	
@@ -59,36 +56,14 @@ func (h *VitalInstrumentHandler) Create(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// Validación básica
-	if vi.Name == "" {
-		RespondWithError(w, http.StatusBadRequest, "Name is required")
-		return
-	}
-	
-	// Establecer marcas de tiempo
-	now := time.Now()
-	vi.CreatedAt = now
-	vi.UpdatedAt = now
-	
-	query := `INSERT INTO vital_instruments (
-		name, main_image, description, powers, character_id,
-		first_appearance, created_at, updated_at
-	) VALUES (
-		:name, :main_image, :description, :powers, :character_id,
-		:first_appearance, :created_at, :updated_at
-	) RETURNING id`
-	
-	rows, err := h.DB.NamedQuery(query, vi)
+	err := vitalinstrument.Create(&vi)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to create vital instrument")
+		if err == vitalinstrument.ErrInvalidInput {
+			RespondWithError(w, http.StatusBadRequest, "Name is required")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to create vital instrument")
+		}
 		return
-	}
-	defer rows.Close()
-	
-	if rows.Next() {
-		var id uint
-		rows.Scan(&id)
-		vi.ID = id
 	}
 	
 	RespondWithJSON(w, http.StatusCreated, vi)
@@ -108,31 +83,13 @@ func (h *VitalInstrumentHandler) Update(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// Verificar si el instrumento vital existe
-	var exists bool
-	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM vital_instruments WHERE id = $1 AND deleted_at IS NULL", id)
-	if err != nil || !exists {
-		RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
-		return
-	}
-	
-	// Establecer ID y actualizar marca de tiempo
-	vi.ID = id
-	vi.UpdatedAt = time.Now()
-	
-	query := `UPDATE vital_instruments SET
-		name = :name, 
-		main_image = :main_image,
-		description = :description,
-		powers = :powers,
-		character_id = :character_id,
-		first_appearance = :first_appearance,
-		updated_at = :updated_at
-	WHERE id = :id AND deleted_at IS NULL`
-	
-	_, err = h.DB.NamedExec(query, vi)
+	err = vitalinstrument.Update(id, &vi)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to update vital instrument")
+		if err == vitalinstrument.ErrVitalInstrumentNotFound {
+			RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to update vital instrument")
+		}
 		return
 	}
 	
@@ -147,19 +104,13 @@ func (h *VitalInstrumentHandler) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// Verificar si el instrumento vital existe
-	var exists bool
-	err = h.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM vital_instruments WHERE id = $1 AND deleted_at IS NULL", id)
-	if err != nil || !exists {
-		RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
-		return
-	}
-	
-	// Eliminación lógica
-	now := time.Now()
-	_, err = h.DB.Exec("UPDATE vital_instruments SET deleted_at = $1 WHERE id = $2", now, id)
+	err = vitalinstrument.Delete(id)
 	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to delete vital instrument")
+		if err == vitalinstrument.ErrVitalInstrumentNotFound {
+			RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to delete vital instrument")
+		}
 		return
 	}
 	
@@ -174,10 +125,7 @@ func (h *VitalInstrumentHandler) ListByCharacter(w http.ResponseWriter, r *http.
 		return
 	}
 	
-	var instruments []vitalinstrument.VitalInstrument
-	err = h.DB.Select(&instruments, 
-		"SELECT * FROM vital_instruments WHERE character_id = $1 AND deleted_at IS NULL ORDER BY name ASC", 
-		characterID)
+	instruments, err := vitalinstrument.GetByCharacterID(characterID)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch vital instruments")
 		return
