@@ -13,9 +13,9 @@ import (
 
 // Authentication configuration settings
 type AuthConfig struct {
-    // JWT settings
-    JWTSecret          string
-    JWTExpirationHours int
+    // Paseto settings (reemplaza JWT)
+    PasetoSecret       string
+    TokenExpirationHours int
     RefreshTokenDays   int
     
     // Session settings
@@ -56,13 +56,13 @@ var SMTP *SMTPConfig
 func LoadAuthConfig() *AuthConfig {
     log := logger.GetLogger(zap.String("component", "auth-config"))
     
-    // Load JWT settings
-    jwtSecret := getEnvOrDefault("JWT_SECRET", "")
-    if jwtSecret == "" {
-        log.Fatal("JWT_SECRET environment variable is required")
+    // Load Paseto settings (reemplaza JWT)
+    pasetoSecret := getEnvOrDefault("PASETO_SECRET", "")
+    if pasetoSecret == "" {
+        log.Fatal("PASETO_SECRET environment variable is required")
     }
     
-    jwtExpiration := getEnvAsIntOrDefault("JWT_EXPIRATION_HOURS", 24)
+    tokenExpiration := getEnvAsIntOrDefault("TOKEN_EXPIRATION_HOURS", 24)
     refreshTokenDays := getEnvAsIntOrDefault("REFRESH_TOKEN_DAYS", 30)
     
     // Load session settings
@@ -85,8 +85,8 @@ func LoadAuthConfig() *AuthConfig {
     backendURL := getEnvOrDefault("BACKEND_URL", "http://localhost:8080")
     
     config := &AuthConfig{
-        JWTSecret:            jwtSecret,
-        JWTExpirationHours:   jwtExpiration,
+        PasetoSecret:         pasetoSecret,
+        TokenExpirationHours: tokenExpiration,
         RefreshTokenDays:     refreshTokenDays,
         SessionTimeout:       time.Duration(sessionTimeoutMinutes) * time.Minute,
         MaxSessionsPerUser:   maxSessionsPerUser,
@@ -101,7 +101,7 @@ func LoadAuthConfig() *AuthConfig {
     
     Auth = config
     log.Info("Authentication configuration loaded successfully",
-        zap.Int("jwt_expiration_hours", jwtExpiration),
+        zap.Int("token_expiration_hours", tokenExpiration),
         zap.Bool("magic_link_enabled", magicLinkEnabled),
         zap.Int("session_timeout_minutes", sessionTimeoutMinutes),
     )

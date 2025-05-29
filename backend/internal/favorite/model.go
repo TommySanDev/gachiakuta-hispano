@@ -1,24 +1,22 @@
 package favorite
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
+// Favorite represents a user's favorite entity (character, chapter, vital_instrument)
 type Favorite struct {
-    ID         uint      `json:"id" db:"id"`
-    UserID     uint      `json:"user_id" db:"user_id"`
-    EntityType string    `json:"entity_type" db:"entity_type"` // character, chapter, vital_instrument
-    EntityID   uint      `json:"entity_id" db:"entity_id"`
-    CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID         uint      `json:"id,omitempty" db:"id"`
+	UserID     uint      `json:"user_id,omitempty" db:"user_id"`
+	EntityType string    `json:"entity_type" db:"entity_type"` // character, chapter, vital_instrument
+	EntityID   uint      `json:"entity_id" db:"entity_id"`
+	CreatedAt  time.Time `json:"created_at,omitempty" db:"created_at"`
 }
 
-// Dto for creating a favorite
-type CreateFavoriteInput struct {
-    EntityType string `json:"entity_type" validate:"required"` // must match allowed types
-    EntityID   uint   `json:"entity_id" validate:"required"`
-}
-
-// Dto for removing a favorite
-type DeleteFavoriteInput struct {
-    EntityType string `json:"entity_type" validate:"required"`
-    EntityID   uint   `json:"entity_id" validate:"required"`
-}
-
+// Common errors
+var (
+	ErrFavoriteNotFound = errors.New("favorite not found")
+	ErrInvalidInput     = errors.New("invalid input")
+	ErrAlreadyFavorited = errors.New("favorite already exists")
+)

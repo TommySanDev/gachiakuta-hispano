@@ -8,7 +8,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 	
+	"github.com/TommySanDev/gachiakuta-hispano/config"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/handler"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/middleware"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
 
 // RegisterRoutes configura todas las rutas de la aplicación
@@ -44,27 +47,79 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 	
-	// Inicializar manejadores
+	// Initialize auth middleware
+	tokenService := user.NewTokenService(config.Auth.JWTSecret)
+	authMW := middleware.NewAuthMiddleware(db, tokenService)
+	
+	// Initialize handlers
 	characterHandler := handler.NewCharacterHandler(db)
 	vitalInstrumentHandler := handler.NewVitalInstrumentHandler(db)
+	commentHandler := handler.NewCommentHandler(db)
+	favoriteHandler := handler.NewFavoriteHandler(db)
 	
-	// Rutas de Character
+	// === PUBLIC ROUTES (no authentication required) ===
+	
+	// Character routes
 	router.Route("/api/characters", func(r chi.Router) {
 		r.Get("/", characterHandler.GetAll)
-		r.Post("/", characterHandler.Create)
 		r.Get("/{id}", characterHandler.GetByID)
-		r.Put("/{id}", characterHandler.Update)
-		r.Delete("/{id}", characterHandler.Delete)
 	})
 	
-	// Rutas de VitalInstrument
+	// VitalInstrument routes
 	router.Route("/api/vital-instruments", func(r chi.Router) {
 		r.Get("/", vitalInstrumentHandler.GetAll)
-		r.Post("/", vitalInstrumentHandler.Create)
 		r.Get("/{id}", vitalInstrumentHandler.GetByID)
-		r.Put("/{id}", vitalInstrumentHandler.Update)
-		r.Delete("/{id}", vitalInstrumentHandler.Delete)
 		r.Get("/character/{id}", vitalInstrumentHandler.ListByCharacter)
+	})
+	
+	// Comment routes (public read)
+	router.Get("/api/comments/chapter/{id}", commentHandler.ListByChapter)
+	
+	// === AUTHENTICATED ROUTES ===
+	router.Route("/api", func(r chi.Router) {
+		r.Use(authMW.Authenticate)
+		
+		// Comment operations (authenticated users)
+		r.Route("/comments", func(r chi.Router) {
+			r.Post("/", commentHandler.Create)         // POST /comments
+			r.Put("/{id}", commentHandler.Update)      // PUT /comments/{id}
+			r.Delete("/{id}", commentHandler.Delete)   // DELETE /comments/{id}
+		})
+		
+		// Favorite operations (authenticated users)
+		r.Route("/favorites", func(r chi.Router) {
+			r.Get("/", favoriteHandler.List)     // GET /favorites
+			r.Post("/", favoriteHandler.Add)     // POST /favorites
+			r.Delete("/", favoriteHandler.Remove) // DELETE /favorites
+		})
+	})
+	
+	// === EDITOR ROUTES (editor + admin) ===
+	router.Route("/api/editor", func(r chi.Router) {
+		r.Use(authMW.Authenticate)
+		r.Use(authMW.RequireRole(user.RoleEditor))
+		
+		// Content management
+		r.Route("/characters", func(r chi.Router) {
+			r.Post("/", characterHandler.Create)
+			r.Put("/{id}", characterHandler.Update)
+			r.Delete("/{id}", characterHandler.Delete)
+		})
+		
+		r.Route("/vital-instruments", func(r chi.Router) {
+			r.Post("/", vitalInstrumentHandler.Create)
+			r.Put("/{id}", vitalInstrumentHandler.Update)
+			r.Delete("/{id}", vitalInstrumentHandler.Delete)
+		})
+	})
+	
+	// === ADMIN ROUTES (admin only) ===
+	router.Route("/api/admin", func(r chi.Router) {
+		r.Use(authMW.Authenticate)
+		r.Use(authMW.RequireRole(user.RoleAdmin))
+		
+		// Permanent deletion operations
+		r.Delete("/comments/{id}/permanent", commentHandler.DeletePermanently)
 	})
 	
 	return router
