@@ -33,8 +33,8 @@ func RespondWithError(w http.ResponseWriter, status int, message string) {
 	RespondWithJSON(w, status, map[string]string{"error": message})
 }
 
-// getIntParam extracts integer parameter from query string with default value
-func getIntParam(r *http.Request, key string, defaultValue int) int {
+// GetIntParam extracts integer parameter from query string with default value
+func GetIntParam(r *http.Request, key string, defaultValue int) int {
 	if value := r.URL.Query().Get(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue

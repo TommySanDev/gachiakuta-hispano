@@ -1,8 +1,6 @@
 package user
 
 import (
-	"fmt"
-	"strings"
 	"time"
 	
 	"golang.org/x/crypto/bcrypt"

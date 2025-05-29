@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
@@ -103,8 +102,8 @@ func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	params := user.ListUsersParams{
-		Page:           getIntParam(r, "page", 1),
-		PageSize:       getIntParam(r, "page_size", 20),
+		Page:           GetIntParam(r, "page", 1),
+		PageSize:       GetIntParam(r, "page_size", 20),
 		Search:         r.URL.Query().Get("search"),
 		Role:           r.URL.Query().Get("role"),
 		IncludeDeleted: r.URL.Query().Get("include_deleted") == "true",
@@ -255,14 +254,4 @@ func (h *UserHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// Helper function (moved from old handler)
-func getIntParam(r *http.Request, key string, defaultValue int) int {
-	if value := r.URL.Query().Get("key"); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
 }
