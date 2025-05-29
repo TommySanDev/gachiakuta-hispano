@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -22,11 +23,37 @@ type TokenClaims struct {
 	ExpiresAt int64  `json:"exp"`
 }
 
-// NewTokenService creates a new token service with secret key
+// NewTokenService creates a new token service with automatic key format detection
 func NewTokenService(secretKey string) *TokenService {
-	return &TokenService{
-		secretKey: []byte(secretKey),
+	key, err := parseSecretKey(secretKey)
+	if err != nil {
+		// Fallback to treating as raw string (for backwards compatibility)
+		key = []byte(secretKey)
 	}
+	
+	return &TokenService{
+		secretKey: key,
+	}
+}
+
+// parseSecretKey detects and parses the secret key format
+func parseSecretKey(secretKey string) ([]byte, error) {
+	// Try to decode as base64 first
+	if decoded, err := base64.StdEncoding.DecodeString(secretKey); err == nil {
+		// Successful base64 decode
+		if len(decoded) >= 32 {
+			return decoded, nil
+		}
+		// Base64 decoded but too short, treat as raw
+		return []byte(secretKey), fmt.Errorf("base64 key too short")
+	}
+	
+	// Not valid base64, treat as raw string
+	if len(secretKey) >= 32 {
+		return []byte(secretKey), nil
+	}
+	
+	return nil, fmt.Errorf("secret key too short (minimum 32 characters or base64 equivalent)")
 }
 
 // GenerateToken creates a new Paseto token for a user
