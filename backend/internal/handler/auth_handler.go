@@ -15,13 +15,15 @@ import (
 type AuthHandler struct {
 	DB           *sqlx.DB
 	TokenService *user.TokenService
+	EmailService *user.EmailService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(db *sqlx.DB, tokenService *user.TokenService) *AuthHandler {
+func NewAuthHandler(db *sqlx.DB, tokenService *user.TokenService, emailService *user.EmailService) *AuthHandler {
 	return &AuthHandler{
 		DB:           db,
 		TokenService: tokenService,
+		EmailService: emailService,
 	}
 }
 
@@ -101,6 +103,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		var id uint
 		rows.Scan(&id)
 		newUser.ID = id
+	}
+
+	// Send welcome email
+	if h.EmailService != nil && h.EmailService.IsConfigured() {
+		// Don't fail registration if email fails, just log it
+		err = h.EmailService.SendWelcomeEmail(newUser.Email, newUser.Username)
+		if err != nil {
+			// Email error is logged in the service, continue with registration
+		}
 	}
 
 	RespondWithJSON(w, http.StatusCreated, newUser)

@@ -15,9 +15,15 @@ func main() {
 	log := logger.GetLogger(zap.String("component", "main"))
 	log.Info("Starting Gachiakuta Hispano server")
 
-	// Load configuration
-	_ = config.LoadAuthConfig() // Unused for now, kept for future use
-	_ = config.LoadSMTPConfig()
+	// Load configurations
+	authConfig := config.LoadAuthConfig()
+	smtpConfig := config.LoadSMTPConfig()
+	
+	if smtpConfig != nil {
+		log.Info("SMTP configuration loaded successfully")
+	} else {
+		log.Warn("SMTP configuration not available - email features will be disabled")
+	}
 
 	// Connect to database
 	db := config.ConnectDB()
@@ -27,9 +33,15 @@ func main() {
 	router := internal.RegisterRoutes(db)
 
 	// Start server
-	log.Info("Server running at http://localhost:8080")
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	port := ":8080"
+	log.Info("Server running", 
+		zap.String("port", port),
+		zap.String("paseto_configured", "yes"),
+		zap.Bool("smtp_configured", smtpConfig != nil),
+		zap.Int("token_expiration_hours", authConfig.TokenExpirationHours),
+	)
+	
+	if err := http.ListenAndServe(port, router); err != nil {
 		log.Fatal("Server startup error", zap.Error(err))
 	}
 }
-
