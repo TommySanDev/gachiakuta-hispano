@@ -17,7 +17,7 @@ var DB *sqlx.DB
 func ConnectDB() *sqlx.DB {
     log := logger.GetLogger(zap.String("component", "database"))
 
-    // Cargar .env si existe
+    // Load .env 
     _ = godotenv.Load()
 
     user := os.Getenv("DB_USER")

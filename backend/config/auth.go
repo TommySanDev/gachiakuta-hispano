@@ -6,7 +6,7 @@ import (
     "time"
 
     "go.uber.org/zap"
-    
+    "github.com/joho/godotenv" 
     "github.com/TommySanDev/gachiakuta-hispano/internal/logger"
     "github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
@@ -56,6 +56,9 @@ var SMTP *SMTPConfig
 func LoadAuthConfig() *AuthConfig {
     log := logger.GetLogger(zap.String("component", "auth-config"))
     
+    // Load .env
+    _ = godotenv.Load()
+
     // Load Paseto settings (reemplaza JWT)
     pasetoSecret := getEnvOrDefault("PASETO_SECRET", "")
     if pasetoSecret == "" {
@@ -113,6 +116,9 @@ func LoadAuthConfig() *AuthConfig {
 func LoadSMTPConfig() *SMTPConfig {
     log := logger.GetLogger(zap.String("component", "smtp-config"))
     
+    // Cargar .env si no se ha cargado ya
+    _ = godotenv.Load()
+    
     host := getEnvOrDefault("SMTP_HOST", "")
     port := getEnvOrDefault("SMTP_PORT", "587")
     username := getEnvOrDefault("SMTP_USERNAME", "")
@@ -120,7 +126,8 @@ func LoadSMTPConfig() *SMTPConfig {
     from := getEnvOrDefault("SMTP_FROM", "")
     tls := getEnvAsBoolOrDefault("SMTP_TLS", true)
     
-    if host == "" || username == "" || password == "" || from == "" {
+    // Para MailHog y testing, solo requerimos host y from
+    if host == "" || from == "" {
         log.Warn("SMTP configuration incomplete - email features will be disabled")
         return nil
     }
