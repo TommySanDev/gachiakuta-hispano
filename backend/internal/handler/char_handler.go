@@ -116,3 +116,45 @@ func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// DeletePermanently permanently deletes a character (admin only)
+func (h *CharacterHandler) DeletePermanently(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	
+	err = character.DeletePermanently(id)
+	if err != nil {
+		if err == character.ErrCharacterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Character not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to delete character permanently")
+		}
+		return
+	}
+	
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Restore restores a soft deleted character (admin only)
+func (h *CharacterHandler) Restore(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	
+	err = character.Restore(id)
+	if err != nil {
+		if err == character.ErrCharacterNotFound {
+			RespondWithError(w, http.StatusNotFound, "Deleted character not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to restore character")
+		}
+		return
+	}
+	
+	w.WriteHeader(http.StatusNoContent)
+}

@@ -133,3 +133,45 @@ func (h *VitalInstrumentHandler) ListByCharacter(w http.ResponseWriter, r *http.
 	
 	RespondWithJSON(w, http.StatusOK, instruments)
 }
+
+// DeletePermanently permanently deletes a vital instrument (admin only)
+func (h *VitalInstrumentHandler) DeletePermanently(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	
+	err = vitalinstrument.DeletePermanently(id)
+	if err != nil {
+		if err == vitalinstrument.ErrVitalInstrumentNotFound {
+			RespondWithError(w, http.StatusNotFound, "Vital instrument not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to delete vital instrument permanently")
+		}
+		return
+	}
+	
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Restore restores a soft deleted vital instrument (admin only)
+func (h *VitalInstrumentHandler) Restore(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	
+	err = vitalinstrument.Restore(id)
+	if err != nil {
+		if err == vitalinstrument.ErrVitalInstrumentNotFound {
+			RespondWithError(w, http.StatusNotFound, "Deleted vital instrument not found")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Failed to restore vital instrument")
+		}
+		return
+	}
+	
+	w.WriteHeader(http.StatusNoContent)
+}
