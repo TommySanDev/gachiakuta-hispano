@@ -139,3 +139,34 @@ func Exists(id uint) (bool, error) {
 	err := config.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM vital_instruments WHERE id = $1 AND deleted_at IS NULL", id)
 	return exists, err
 }
+
+// DeletePermanently permanently deletes a vital instrument (admin only)
+func DeletePermanently(id uint) error {
+	result, err := config.DB.Exec("DELETE FROM vital_instruments WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+	
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrVitalInstrumentNotFound
+	}
+	
+	return nil
+}
+
+// Restore restores a soft deleted vital instrument (admin only)
+func Restore(id uint) error {
+	result, err := config.DB.Exec("UPDATE vital_instruments SET deleted_at = NULL, updated_at = $1 WHERE id = $2 AND deleted_at IS NOT NULL", 
+		time.Now(), id)
+	if err != nil {
+		return err
+	}
+	
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrVitalInstrumentNotFound
+	}
+	
+	return nil
+}
