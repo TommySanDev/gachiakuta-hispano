@@ -150,3 +150,34 @@ func Exists(id uint) (bool, error) {
 	err := config.DB.Get(&exists, "SELECT COUNT(*) > 0 FROM characters WHERE id = $1 AND deleted_at IS NULL", id)
 	return exists, err
 }
+
+// DeletePermanently permanently deletes a character (admin only)
+func DeletePermanently(id uint) error {
+	result, err := config.DB.Exec("DELETE FROM characters WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+	
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrCharacterNotFound
+	}
+	
+	return nil
+}
+
+// Restore restores a soft deleted character (admin only)
+func Restore(id uint) error {
+	result, err := config.DB.Exec("UPDATE characters SET deleted_at = NULL, updated_at = $1 WHERE id = $2 AND deleted_at IS NOT NULL", 
+		time.Now(), id)
+	if err != nil {
+		return err
+	}
+	
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrCharacterNotFound
+	}
+	
+	return nil
+}
