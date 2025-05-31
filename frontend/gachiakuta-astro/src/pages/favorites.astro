@@ -1,0 +1,120 @@
+---
+import HeaderLayout from '../layouts/HeaderLayout.astro';
+import { getUserFromCookies } from '../lib/auth-server';
+
+// This page requires authentication (handled by middleware)
+export const prerender = false;
+
+// Get user (middleware ensures this exists)
+const user = await getUserFromCookies(Astro.cookies);
+---
+
+<HeaderLayout title="My Favorites - Gachiakuta Hispano">
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Page header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">
+          My Favorites
+        </h1>
+        <p class="text-gray-300">
+          Your collection of favorite characters, chapters, and vital instruments
+        </p>
+      </div>
+
+      <!-- Welcome message for authenticated user -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600 mb-8">
+        <div class="flex items-center">
+          <div class="h-12 w-12 rounded-full bg-gray-600 flex items-center justify-center mr-4">
+            <span class="text-lg font-semibold text-white uppercase">
+              {user?.first_name.charAt(0)}{user?.last_name.charAt(0)}
+            </span>
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-white">
+              Welcome back, {user?.first_name}!
+            </h2>
+            <p class="text-gray-300">
+              Here are your saved favorites from the Gachiakuta universe
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Favorites grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Characters -->
+        <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+            </svg>
+            Favorite Characters
+          </h3>
+          <div class="space-y-3">
+            <p class="text-gray-300 text-sm">No favorite characters yet.</p>
+            <p class="text-gray-400 text-xs">
+              Visit the Characters page to add some favorites!
+            </p>
+          </div>
+        </div>
+
+        <!-- Chapters -->
+        <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+            </svg>
+            Favorite Chapters
+          </h3>
+          <div class="space-y-3">
+            <p class="text-gray-300 text-sm">No favorite chapters yet.</p>
+            <p class="text-gray-400 text-xs">
+              Visit the Chapters page to add some favorites!
+            </p>
+          </div>
+        </div>
+
+        <!-- Vital Instruments -->
+        <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+            </svg>
+            Favorite Vital Instruments
+          </h3>
+          <div class="space-y-3">
+            <p class="text-gray-300 text-sm">No favorite vital instruments yet.</p>
+            <p class="text-gray-400 text-xs">
+              Visit the Vital Instruments page to add some favorites!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="mt-8 text-center">
+        <div class="space-x-4">
+          <a 
+            href="/CharactersPage" 
+            class="inline-flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-md transition-colors"
+          >
+            Browse Characters
+          </a>
+          <a 
+            href="/chapters" 
+            class="inline-flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-md transition-colors"
+          >
+            Browse Chapters
+          </a>
+          <a 
+            href="/vital-instruments" 
+            class="inline-flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-md transition-colors"
+          >
+            Browse Vital Instruments
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</HeaderLayout>
