@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+  "log"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
@@ -25,6 +26,7 @@ func NewAuthMiddleware(db *sqlx.DB, tokenService *user.TokenService) *AuthMiddle
 // Authenticate validates Paseto token and loads user context
 func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    log.Printf("DEBUG: Auth middleware called for %s %s", r.Method, r.URL.Path)
 		// Extract token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
