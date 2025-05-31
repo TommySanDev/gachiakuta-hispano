@@ -90,8 +90,23 @@ import FormField from '../ui/FormField.astro';
       <h3 class="text-lg font-semibold text-white mb-4">
         Step 3: Save Recovery Codes
       </h3>
+      
+      <!-- Download notification -->
+      <div id="download-notification" class="hidden mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        <div class="flex items-center">
+          <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <div>
+            <strong>✅ Códigos descargados automáticamente</strong>
+            <div class="text-sm">📁 Archivo: gachiakuta-recovery-codes.txt</div>
+            <div class="text-sm">💾 Ubicación: Carpeta Descargas</div>
+          </div>
+        </div>
+      </div>
+
       <p class="text-gray-300 text-sm mb-6">
-        Save these recovery codes in a safe place. You can use them to access your account if you lose your authenticator device:
+        ⚠️ <strong>Importante:</strong> Guarde estos códigos en un lugar seguro. Cada código se puede usar solo una vez y los necesitará si pierde acceso a su teléfono.
       </p>
 
       <div id="recovery-codes" class="bg-gray-800 p-4 rounded border mb-6">
@@ -106,9 +121,9 @@ import FormField from '../ui/FormField.astro';
           variant="primary" 
           size="lg" 
           class="w-full"
-          id="download-codes-btn"
+          id="manual-download-btn"
         >
-          Download Codes
+          📥 Descargar Códigos Nuevamente
         </Button>
         
         <Button 
@@ -118,7 +133,7 @@ import FormField from '../ui/FormField.astro';
           class="w-full"
           id="finish-setup-btn"
         >
-          I've Saved My Codes
+          He Guardado Mis Códigos
         </Button>
       </div>
     </div>
@@ -155,10 +170,12 @@ import FormField from '../ui/FormField.astro';
   const errorDiv = document.getElementById('totp-error') as HTMLDivElement;
   const errorMessage = document.getElementById('totp-error-message') as HTMLSpanElement;
   const codesList = document.getElementById('codes-list') as HTMLDivElement;
-  const downloadCodesBtn = document.getElementById('download-codes-btn') as HTMLButtonElement;
+  const downloadNotification = document.getElementById('download-notification') as HTMLDivElement;
+  const manualDownloadBtn = document.getElementById('manual-download-btn') as HTMLButtonElement;
   const finishSetupBtn = document.getElementById('finish-setup-btn') as HTMLButtonElement;
 
   let currentSetupData: TOTPSetupResponse | null = null;
+  let currentRecoveryCodes: string[] = [];
 
   // Show error message
   function showError(message: string) {
@@ -175,6 +192,69 @@ import FormField from '../ui/FormField.astro';
   function setVerifyLoading(loading: boolean) {
     verifySubmit.disabled = loading;
     verifySubmitText.textContent = loading ? 'Verifying...' : 'Verify & Enable 2FA';
+  }
+
+  // Auto-download recovery codes
+  function autoDownloadCodes(codes: string[]): void {
+    const content = `Gachiakuta Hispano - Códigos de Recuperación 2FA
+
+⚠️  IMPORTANTE: Guarde estos códigos en un lugar seguro
+🔑 Cada código se puede usar solo una vez
+📱 Los necesitará si pierde acceso a su teléfono
+
+Códigos de Recuperación:
+${codes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
+
+Fecha de generación: ${new Date().toLocaleString()}
+
+¿Qué hacer con estos códigos?
+- Guárdelos en un lugar seguro (no en su teléfono)
+- Puede imprimirlos y guardarlos físicamente
+- O guardarlos en un gestor de contraseñas
+- NO los comparta con nadie
+
+Si pierde acceso a su autenticador, use uno de estos códigos para iniciar sesión.`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gachiakuta-recovery-codes.txt';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Show download notification
+  function showDownloadNotification(): void {
+    downloadNotification.classList.remove('hidden');
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+      downloadNotification.classList.add('hidden');
+    }, 10000);
+  }
+
+  // Display recovery codes (with auto-download)
+  function displayRecoveryCodes(codes: string[]) {
+    currentRecoveryCodes = codes;
+    
+    // Mostrar códigos en pantalla
+    codesList.innerHTML = '';
+    codes.forEach(code => {
+      const codeDiv = document.createElement('div');
+      codeDiv.className = 'p-2 bg-gray-900 rounded text-center';
+      codeDiv.textContent = code;
+      codesList.appendChild(codeDiv);
+    });
+
+    // Auto-download
+    autoDownloadCodes(codes);
+    
+    // Mostrar notificación
+    showDownloadNotification();
   }
 
   // Generate QR code
@@ -269,35 +349,19 @@ import FormField from '../ui/FormField.astro';
     }
   });
 
-  // Display recovery codes
-  function displayRecoveryCodes(codes: string[]) {
-    codesList.innerHTML = '';
-    codes.forEach(code => {
-      const codeDiv = document.createElement('div');
-      codeDiv.className = 'p-2 bg-gray-900 rounded text-center';
-      codeDiv.textContent = code;
-      codesList.appendChild(codeDiv);
-    });
-  }
-
-  // Download recovery codes
-  downloadCodesBtn.addEventListener('click', () => {
-    const codes = Array.from(codesList.children).map(el => el.textContent).join('\n');
-    const blob = new Blob([`Gachiakuta Hispano - 2FA Recovery Codes\n\n${codes}\n\nSave these codes securely. Each can only be used once.`], 
-      { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'gachiakuta-recovery-codes.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+  // Manual download button
+  manualDownloadBtn.addEventListener('click', () => {
+    if (currentRecoveryCodes.length > 0) {
+      autoDownloadCodes(currentRecoveryCodes);
+      showDownloadNotification();
+    }
   });
 
   // Finish setup
   finishSetupBtn.addEventListener('click', finishSetup);
 
   function finishSetup() {
-    alert('2FA has been successfully enabled for your account!');
+    alert('¡2FA habilitado exitosamente! Sus códigos de recuperación han sido descargados.');
     window.location.href = '/auth/profile';
   }
 </script>

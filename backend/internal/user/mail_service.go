@@ -63,7 +63,7 @@ func (es *EmailService) SendPasswordReset(email, token string) error {
         return nil
     }
 
-    resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", es.config.BaseURL, token)
+    resetURL := fmt.Sprintf("%s/auth/reset-password/confirm?token=%s", es.config.BaseURL, token)
     
     subject := "Password Reset - Gachiakuta Hispano"
     body := fmt.Sprintf(`

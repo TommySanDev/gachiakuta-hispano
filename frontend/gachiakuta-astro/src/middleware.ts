@@ -6,11 +6,13 @@ const protectedRoutes = {
   // Routes that require any authentication
   auth: [
     '/auth/profile',
+    '/auth/2fa-setup',
     '/favorites',
   ],
   // Routes that require user role or higher
   user: [
     '/auth/profile',
+    '/auth/2fa-setup',
     '/favorites',
   ],
   // Routes that require editor role or higher
@@ -27,10 +29,10 @@ const protectedRoutes = {
 };
 
 // Routes that should redirect to home if user is already authenticated
+// Removed '/auth/reset-password' to allow logged-in users to reset their password
 const guestOnlyRoutes = [
   '/auth/login',
   '/auth/register',
-  '/auth/reset-password',
 ];
 
 export const onRequest = defineMiddleware(async (context, next) => {
