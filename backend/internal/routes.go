@@ -52,7 +52,7 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 	emailService := user.NewEmailService(config.GetEmailConfig())
 	authMW := mw.NewAuthMiddleware(db, tokenService)
 
-	// Initialize handlers - TODOS REFACTORIZADOS SIN DB
+	// Initialize handlers
 	characterHandler := handler.NewCharacterHandler()
 	vitalInstrumentHandler := handler.NewVitalInstrumentHandler()
 	chapterHandler := handler.NewChapterHandler()
@@ -61,7 +61,7 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 	userHandler := handler.NewUserHandler()
 	totpHandler := handler.NewTOTPHandler()
 
-	// Handlers que SÍ necesitan servicios externos
+	// Handlers with external services
 	authHandler := handler.NewAuthHandler(tokenService, emailService)
 	passwordHandler := handler.NewPasswordHandler(tokenService, emailService)
 

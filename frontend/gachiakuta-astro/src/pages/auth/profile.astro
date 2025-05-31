@@ -157,52 +157,85 @@ if (!user) {
           <!-- Security Settings -->
           <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
             <h3 class="text-lg font-semibold text-white mb-4">Security Settings</h3>
-            <div class="space-y-4">
-              {!user.totp_enabled && (
-                <div class="flex items-center justify-between">
+            <div class="space-y-6">
+              
+              <!-- 2FA Section -->
+              <div class="border border-gray-600 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
                   <div>
                     <h4 class="text-white font-medium">Two-Factor Authentication</h4>
                     <p class="text-gray-300 text-sm">Add an extra layer of security to your account</p>
                   </div>
-                  <a 
-                    href="/auth/2fa-setup"
-                    class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                  >
-                    Enable 2FA
-                  </a>
+                  <div class={`px-3 py-1 rounded-full text-sm font-medium ${
+                    user.totp_enabled 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {user.totp_enabled ? 'Enabled' : 'Disabled'}
+                  </div>
                 </div>
-              )}
-              
-              {user.totp_enabled && (
+
+                {!user.totp_enabled ? (
+                  <!-- Enable 2FA -->
+                  <div class="flex items-center justify-between">
+                    <p class="text-gray-300 text-sm">
+                      🔒 Protect your account with 2FA
+                    </p>
+                    <a 
+                      href="/auth/2fa-setup"
+                      class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                    >
+                      Enable 2FA
+                    </a>
+                  </div>
+                ) : (
+                  <!-- 2FA Management -->
+                  <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <p class="text-gray-300 text-sm">
+                        ✅ Your account is protected with 2FA
+                      </p>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2">
+                      <button 
+                        id="generate-recovery-codes-btn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors text-sm"
+                      >
+                        🔄 Generate New Recovery Codes
+                      </button>
+                      
+                      <button 
+                        id="disable-2fa-btn"
+                        class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors text-sm"
+                      >
+                        ❌ Disable 2FA
+                      </button>
+                    </div>
+
+                    <!-- Status messages -->
+                    <div id="2fa-message" class="hidden mt-3"></div>
+                  </div>
+                )}
+              </div>
+
+              <!-- Magic Link Section -->
+              <div class="border border-gray-600 rounded-lg p-4">
                 <div class="flex items-center justify-between">
                   <div>
-                    <h4 class="text-white font-medium">Two-Factor Authentication</h4>
-                    <p class="text-gray-300 text-sm">Your account is protected with 2FA</p>
+                    <h4 class="text-white font-medium">Magic Link Login</h4>
+                    <p class="text-gray-300 text-sm">Sign in without a password using email links</p>
                   </div>
-                  <div class="space-x-2">
-                    <button class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
-                      Recovery Codes
-                    </button>
-                    <button class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
-                      Disable 2FA
-                    </button>
-                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={user.magic_link_enabled}
+                      class="sr-only peer"
+                      id="magic-link-toggle"
+                    />
+                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                  </label>
                 </div>
-              )}
-
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="text-white font-medium">Magic Link Login</h4>
-                  <p class="text-gray-300 text-sm">Sign in without a password using email links</p>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={user.magic_link_enabled}
-                    class="sr-only peer"
-                  />
-                  <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                </label>
               </div>
             </div>
           </div>
@@ -212,16 +245,139 @@ if (!user) {
   </div>
 
   <script>
-    // Placeholder for future interactive functionality
+    import { apiClient } from '../../lib/api-client';
+    import { authToken, updateUser } from '../../lib/auth-store';
+
+    // Elements
     const editProfileBtn = document.getElementById('edit-profile-btn');
     const changePasswordBtn = document.getElementById('change-password-btn');
+    const generateRecoveryCodesBtn = document.getElementById('generate-recovery-codes-btn');
+    const disable2faBtn = document.getElementById('disable-2fa-btn');
+    const messageDiv = document.getElementById('2fa-message');
 
+    // Show message (success or error)
+    function showMessage(message: string, isError: boolean = false) {
+      if (messageDiv) {
+        messageDiv.className = `mt-3 px-4 py-3 rounded ${
+          isError 
+            ? 'bg-red-100 border border-red-400 text-red-700' 
+            : 'bg-green-100 border border-green-400 text-green-700'
+        }`;
+        messageDiv.textContent = message;
+        messageDiv.classList.remove('hidden');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          messageDiv.classList.add('hidden');
+        }, 5000);
+      }
+    }
+
+    // Auto-download function for recovery codes
+    function downloadRecoveryCodes(codes: string[]) {
+      const content = `Gachiakuta Hispano - Nuevos Códigos de Recuperación 2FA
+
+⚠️  IMPORTANTE: Guarde estos códigos en un lugar seguro
+🔑 Cada código se puede usar solo una vez
+📱 Los necesitará si pierde acceso a su teléfono
+
+Códigos de Recuperación:
+${codes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
+
+Fecha de generación: ${new Date().toLocaleString()}
+
+NOTA: Estos códigos reemplazan a los anteriores.`;
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gachiakuta-recovery-codes-new.txt';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Placeholder handlers
     editProfileBtn?.addEventListener('click', () => {
       alert('Profile editing form coming soon!');
     });
 
     changePasswordBtn?.addEventListener('click', () => {
       alert('Change password form coming soon!');
+    });
+
+    // Generate new recovery codes
+    generateRecoveryCodesBtn?.addEventListener('click', async () => {
+      const token = authToken.value;
+      if (!token) {
+        showMessage('Authentication required', true);
+        return;
+      }
+
+      if (!confirm('¿Está seguro? Esto invalidará todos sus códigos de recuperación actuales y generará nuevos.')) {
+        return;
+      }
+
+      try {
+        generateRecoveryCodesBtn.disabled = true;
+        generateRecoveryCodesBtn.textContent = 'Generating...';
+
+        const response = await apiClient.post('/api/2fa/recovery-codes', {}, token);
+        
+        if (response.recovery_codes) {
+          downloadRecoveryCodes(response.recovery_codes);
+          showMessage(`✅ ${response.recovery_codes.length} nuevos códigos generados y descargados`);
+        } else {
+          showMessage('Códigos generados exitosamente');
+        }
+
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error generating recovery codes';
+        showMessage(message, true);
+      } finally {
+        generateRecoveryCodesBtn.disabled = false;
+        generateRecoveryCodesBtn.textContent = '🔄 Generate New Recovery Codes';
+      }
+    });
+
+    // Disable 2FA
+    disable2faBtn?.addEventListener('click', async () => {
+      const token = authToken.value;
+      if (!token) {
+        showMessage('Authentication required', true);
+        return;
+      }
+
+      if (!confirm('¿Está seguro que desea DESHABILITAR la autenticación de dos factores?\n\nEsto hará su cuenta menos segura.')) {
+        return;
+      }
+
+      try {
+        disable2faBtn.disabled = true;
+        disable2faBtn.textContent = 'Disabling...';
+
+        await apiClient.delete('/api/2fa/disable', token);
+        
+        // Update user state
+        updateUser({ totp_enabled: false });
+        
+        showMessage('✅ 2FA deshabilitado exitosamente');
+        
+        // Reload page after 2 seconds to update UI
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error disabling 2FA';
+        showMessage(message, true);
+      } finally {
+        disable2faBtn.disabled = false;
+        disable2faBtn.textContent = '❌ Disable 2FA';
+      }
     });
   </script>
 </HeaderLayout>

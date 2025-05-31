@@ -1,6 +1,9 @@
 ---
 import HeaderLayout from '../../layouts/HeaderLayout.astro';
 import LoginForm from '../../components/auth/LoginForm.astro';
+
+// This page needs access to request headers for middleware
+export const prerender = false;
 ---
 
 <HeaderLayout title="Sign In - Gachiakuta Hispano">

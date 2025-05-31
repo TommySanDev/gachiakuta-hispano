@@ -3,9 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-  "log"
+  "fmt"
 
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/logger"
+	"go.uber.org/zap"
 )
 
 // TOTPHandler handles TOTP 2FA operations
@@ -18,16 +20,21 @@ func NewTOTPHandler() *TOTPHandler {
 
 // Setup2FA initializes TOTP 2FA for the current user
 func (h *TOTPHandler) Setup2FA(w http.ResponseWriter, r *http.Request) {
-	log.Println("DEBUG: Setup2FA called")
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("Setup2FA endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
+	log.Info("Setting up TOTP for user", zap.Uint("user_id", authUser.ID), zap.String("username", authUser.Username))
+
 	setupResponse, err := user.SetupTOTP(authUser.ID)
-  log.Printf("DEBUG: SetupTOTP result - error: %v", err)
 	if err != nil {
+		log.Error("SetupTOTP failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		switch err {
 		case user.ErrUserNotFound:
 			RespondWithError(w, http.StatusUnauthorized, "User not found")
@@ -39,26 +46,34 @@ func (h *TOTPHandler) Setup2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("TOTP setup successful", zap.Uint("user_id", authUser.ID))
 	RespondWithJSON(w, http.StatusOK, setupResponse)
 }
 
 // Verify2FA verifies and enables TOTP 2FA
 func (h *TOTPHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
-  log.Println("DEBUG: Verify2FA called")
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("Verify2FA endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
 	var input user.VerifyTOTPInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		log.Error("Failed to decode request body", zap.Error(err))
 		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	log.Info("Verifying TOTP for user", zap.Uint("user_id", authUser.ID), zap.String("code_length", fmt.Sprintf("%d", len(input.Code))))
+
 	recoveryCodes, err := user.VerifyAndEnableTOTP(authUser.ID, input.Code)
 	if err != nil {
+		log.Error("VerifyAndEnableTOTP failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		switch err {
 		case user.ErrInvalidInput:
 			RespondWithError(w, http.StatusBadRequest, "Verification code is required")
@@ -71,6 +86,8 @@ func (h *TOTPHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	log.Info("TOTP verification successful", zap.Uint("user_id", authUser.ID), zap.Int("recovery_codes_count", len(recoveryCodes)))
 
 	response := map[string]interface{}{
 		"message": "2FA enabled successfully",
@@ -85,18 +102,26 @@ func (h *TOTPHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 
 // Disable2FA disables TOTP 2FA for the current user
 func (h *TOTPHandler) Disable2FA(w http.ResponseWriter, r *http.Request) {
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("Disable2FA endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
+	log.Info("Disabling TOTP for user", zap.Uint("user_id", authUser.ID))
+
 	err := user.DisableTOTP(authUser.ID)
 	if err != nil {
+		log.Error("DisableTOTP failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		RespondWithError(w, http.StatusInternalServerError, "Failed to disable 2FA")
 		return
 	}
 
+	log.Info("TOTP disabled successfully", zap.Uint("user_id", authUser.ID))
 	RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "2FA disabled successfully",
 	})
@@ -104,14 +129,21 @@ func (h *TOTPHandler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 
 // GenerateRecoveryCodes generates new recovery codes for 2FA
 func (h *TOTPHandler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("GenerateRecoveryCodes endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
+	log.Info("Generating recovery codes for user", zap.Uint("user_id", authUser.ID))
+
 	codes, err := user.GenerateNewRecoveryCodes(authUser.ID)
 	if err != nil {
+		log.Error("GenerateNewRecoveryCodes failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		switch err {
 		case user.ErrTOTPNotEnabled:
 			RespondWithError(w, http.StatusBadRequest, "2FA not enabled")
@@ -121,6 +153,7 @@ func (h *TOTPHandler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	log.Info("Recovery codes generated successfully", zap.Uint("user_id", authUser.ID), zap.Int("count", len(codes)))
 	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"recovery_codes": codes,
 		"message":        "New recovery codes generated. Save them securely.",
@@ -129,20 +162,28 @@ func (h *TOTPHandler) GenerateRecoveryCodes(w http.ResponseWriter, r *http.Reque
 
 // UseRecoveryCode validates and uses a recovery code for 2FA bypass
 func (h *TOTPHandler) UseRecoveryCode(w http.ResponseWriter, r *http.Request) {
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("UseRecoveryCode endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
 	var input user.UseRecoveryCodeInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		log.Error("Failed to decode request body", zap.Error(err))
 		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	log.Info("Using recovery code for user", zap.Uint("user_id", authUser.ID))
+
 	err := user.UseRecoveryCode(authUser.ID, input.Code)
 	if err != nil {
+		log.Error("UseRecoveryCode failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		switch err {
 		case user.ErrInvalidInput:
 			RespondWithError(w, http.StatusBadRequest, "Recovery code is required")
@@ -154,6 +195,7 @@ func (h *TOTPHandler) UseRecoveryCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("Recovery code used successfully", zap.Uint("user_id", authUser.ID))
 	RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Recovery code used successfully",
 	})
@@ -161,20 +203,28 @@ func (h *TOTPHandler) UseRecoveryCode(w http.ResponseWriter, r *http.Request) {
 
 // ValidateTOTP validates a TOTP code for an authenticated user
 func (h *TOTPHandler) ValidateTOTP(w http.ResponseWriter, r *http.Request) {
+	log := logger.GetLogger(zap.String("component", "totp-handler"))
+	log.Info("ValidateTOTP endpoint called")
+	
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
+		log.Error("User not found in context")
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
 	var input user.VerifyTOTPInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		log.Error("Failed to decode request body", zap.Error(err))
 		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	log.Info("Validating TOTP for user", zap.Uint("user_id", authUser.ID))
+
 	err := user.ValidateTOTP(authUser.ID, input.Code)
 	if err != nil {
+		log.Error("ValidateTOTP failed", zap.Error(err), zap.Uint("user_id", authUser.ID))
 		switch err {
 		case user.ErrInvalidInput:
 			RespondWithError(w, http.StatusBadRequest, "TOTP code is required")
@@ -190,6 +240,7 @@ func (h *TOTPHandler) ValidateTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("TOTP validation successful", zap.Uint("user_id", authUser.ID))
 	RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "TOTP code valid",
 	})
