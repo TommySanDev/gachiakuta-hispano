@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+  "log"
 
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
@@ -17,6 +18,7 @@ func NewTOTPHandler() *TOTPHandler {
 
 // Setup2FA initializes TOTP 2FA for the current user
 func (h *TOTPHandler) Setup2FA(w http.ResponseWriter, r *http.Request) {
+	log.Println("DEBUG: Setup2FA called")
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
@@ -24,6 +26,7 @@ func (h *TOTPHandler) Setup2FA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setupResponse, err := user.SetupTOTP(authUser.ID)
+  log.Printf("DEBUG: SetupTOTP result - error: %v", err)
 	if err != nil {
 		switch err {
 		case user.ErrUserNotFound:
@@ -41,6 +44,7 @@ func (h *TOTPHandler) Setup2FA(w http.ResponseWriter, r *http.Request) {
 
 // Verify2FA verifies and enables TOTP 2FA
 func (h *TOTPHandler) Verify2FA(w http.ResponseWriter, r *http.Request) {
+  log.Println("DEBUG: Verify2FA called")
 	authUser, ok := user.GetUserFromContext(r.Context())
 	if !ok {
 		RespondWithError(w, http.StatusUnauthorized, "User not found")
