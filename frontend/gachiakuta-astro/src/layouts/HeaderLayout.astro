@@ -1,0 +1,122 @@
+---
+import TVLayout from './TVLayout.astro';
+import UserMenu from '../components/auth/UserMenu.astro';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<TVLayout title={title}>
+  <!-- Header dentro de la pantalla TV -->
+  <header class="screen-header">
+    <div class="flex justify-between items-center p-4 bg-black border-b border-gray-600">
+      <!-- Logo/Brand -->
+      <div class="flex items-center">
+        <a href="/" class="text-lg font-bold text-white hover:text-gray-300 transition-colors">
+          Gachiakuta Hispano
+        </a>
+      </div>
+
+      <!-- Navigation links -->
+      <nav class="hidden md:flex space-x-6">
+        <a href="/" class="text-gray-300 hover:text-white px-2 py-1 text-sm font-medium transition-colors">
+          Home
+        </a>
+        <a href="/CharactersPage" class="text-gray-300 hover:text-white px-2 py-1 text-sm font-medium transition-colors">
+          Characters
+        </a>
+        <a href="/vital-instruments" class="text-gray-300 hover:text-white px-2 py-1 text-sm font-medium transition-colors">
+          Vital Instruments
+        </a>
+        <a href="/chapters" class="text-gray-300 hover:text-white px-2 py-1 text-sm font-medium transition-colors">
+          Chapters
+        </a>
+      </nav>
+
+      <!-- User Menu (Server Island) -->
+      <div class="flex items-center">
+        <UserMenu server:defer>
+          <!-- Fallback content while loading -->
+          <div slot="fallback" class="flex items-center space-x-3">
+            <div class="animate-pulse">
+              <div class="h-6 w-16 bg-gray-700 rounded"></div>
+            </div>
+          </div>
+        </UserMenu>
+      </div>
+
+      <!-- Mobile menu button -->
+      <div class="md:hidden">
+        <button
+          type="button"
+          id="mobile-menu-button"
+          class="text-gray-300 hover:text-white focus:outline-none focus:text-white"
+          aria-label="Toggle mobile menu"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-gray-900 border-b border-gray-600">
+      <div class="px-4 py-2 space-y-1">
+        <a href="/" class="block text-gray-300 hover:text-white px-2 py-2 text-sm font-medium">
+          Home
+        </a>
+        <a href="/CharactersPage" class="block text-gray-300 hover:text-white px-2 py-2 text-sm font-medium">
+          Characters
+        </a>
+        <a href="/vital-instruments" class="block text-gray-300 hover:text-white px-2 py-2 text-sm font-medium">
+          Vital Instruments
+        </a>
+        <a href="/chapters" class="block text-gray-300 hover:text-white px-2 py-2 text-sm font-medium">
+          Chapters
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content area -->
+  <div class="page-content">
+    <slot />
+  </div>
+
+  <script>
+    // Mobile menu toggle
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    if (mobileMenuButton && mobileMenu) {
+      mobileMenuButton.addEventListener('click', () => {
+        const isHidden = mobileMenu.classList.contains('hidden');
+        if (isHidden) {
+          mobileMenu.classList.remove('hidden');
+        } else {
+          mobileMenu.classList.add('hidden');
+        }
+      });
+    }
+
+    // Initialize auth store on page load
+    import { initializeAuth } from '../lib/auth-store';
+    initializeAuth();
+  </script>
+</TVLayout>
+
+<style>
+  .screen-header {
+    flex-shrink: 0;
+    background-color: #111;
+    border-bottom: 1px solid #333;
+  }
+
+  .page-content {
+    padding: 20px;
+  }
+</style>

@@ -1,0 +1,164 @@
+---
+import Button from '../ui/Button.astro';
+import FormField from '../ui/FormField.astro';
+---
+
+<div class="w-full max-w-md mx-auto">
+  <form id="login-form" class="space-y-6">
+    <div>
+      <h2 class="text-2xl font-bold text-center text-white mb-6">
+        Sign In
+      </h2>
+    </div>
+
+    <!-- Error display -->
+    <div id="login-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div class="flex items-center">
+        <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span id="login-error-message"></span>
+      </div>
+    </div>
+
+    <!-- Form fields -->
+    <FormField
+      label="Email"
+      name="email"
+      type="email"
+      placeholder="Enter your email"
+      required
+    />
+
+    <FormField
+      label="Password"
+      name="password"
+      type="password"
+      placeholder="Enter your password"
+      required
+    />
+
+    <!-- Submit button -->
+    <Button
+      type="submit"
+      variant="primary"
+      size="lg"
+      class="w-full"
+      id="login-submit"
+    >
+      <span id="login-submit-text">Sign In</span>
+    </Button>
+
+    <!-- Additional links -->
+    <div class="text-center space-y-2">
+      <a href="/auth/reset-password" class="text-sm text-gray-300 hover:text-white underline">
+        Forgot your password?
+      </a>
+      <div class="text-sm text-gray-300">
+        Don't have an account? 
+        <a href="/auth/register" class="text-white hover:underline font-medium">Sign up</a>
+      </div>
+    </div>
+
+    <!-- Magic link option -->
+    <div class="text-center pt-4 border-t border-gray-600">
+      <button
+        type="button"
+        id="magic-link-btn"
+        class="text-sm text-gray-300 hover:text-white underline"
+      >
+        Send magic link instead
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  import { setAuth, setAuthLoading, setAuthError } from '../../lib/auth-store';
+  import { apiClient } from '../../lib/api-client';
+  import type { LoginInput, AuthResponse } from '../../types/auth';
+
+  const form = document.getElementById('login-form') as HTMLFormElement;
+  const errorDiv = document.getElementById('login-error') as HTMLDivElement;
+  const errorMessage = document.getElementById('login-error-message') as HTMLSpanElement;
+  const submitBtn = document.getElementById('login-submit') as HTMLButtonElement;
+  const submitText = document.getElementById('login-submit-text') as HTMLSpanElement;
+  const magicLinkBtn = document.getElementById('magic-link-btn') as HTMLButtonElement;
+
+  // Show error message
+  function showError(message: string) {
+    errorMessage.textContent = message;
+    errorDiv.classList.remove('hidden');
+    setAuthError(message);
+  }
+
+  // Hide error message
+  function hideError() {
+    errorDiv.classList.add('hidden');
+    setAuthError(null);
+  }
+
+  // Set loading state
+  function setLoading(loading: boolean) {
+    submitBtn.disabled = loading;
+    submitText.textContent = loading ? 'Signing in...' : 'Sign In';
+    setAuthLoading(loading);
+  }
+
+  // Handle form submission
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    
+    const formData = new FormData(form);
+    const loginData: LoginInput = {
+      email: formData.get('email') as string,
+      password: formData.get('password') as string
+    };
+
+    // Basic validation
+    if (!loginData.email || !loginData.password) {
+      showError('Email and password are required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await apiClient.post<AuthResponse>('/api/auth/login', loginData);
+      
+      // Set authentication state
+      setAuth(response.user, response.token);
+      
+      // Redirect to intended page or dashboard
+      const urlParams = new URLSearchParams(window.location.search);
+      const returnTo = urlParams.get('returnTo') || '/';
+      window.location.href = returnTo;
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Handle magic link request
+  magicLinkBtn.addEventListener('click', async () => {
+    const formData = new FormData(form);
+    const email = formData.get('email') as string;
+    
+    if (!email) {
+      showError('Please enter your email first');
+      return;
+    }
+
+    try {
+      await apiClient.post('/api/auth/magic-link', { email });
+      alert('Magic link sent to your email!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send magic link';
+      showError(message);
+    }
+  });
+</script>

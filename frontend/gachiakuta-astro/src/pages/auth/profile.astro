@@ -1,0 +1,227 @@
+---
+import HeaderLayout from '../../layouts/HeaderLayout.astro';
+import { getUserFromCookies } from '../../lib/auth-server';
+
+// This page requires authentication
+export const prerender = false;
+
+// Server-side authentication check
+const user = await getUserFromCookies(Astro.cookies);
+
+// Redirect if not authenticated
+if (!user) {
+  return Astro.redirect('/auth/login?returnTo=/auth/profile');
+}
+---
+
+<HeaderLayout title="Profile - Gachiakuta Hispano">
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto space-y-8">
+      <!-- Page header -->
+      <div class="text-center">
+        <h1 class="text-3xl font-bold text-white mb-2">
+          My Profile
+        </h1>
+        <p class="text-gray-300">
+          Manage your account settings and preferences
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- User Info Card -->
+        <div class="lg:col-span-1">
+          <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+            <div class="text-center">
+              <!-- User avatar -->
+              <div class="mx-auto h-24 w-24 rounded-full bg-gray-600 flex items-center justify-center mb-4">
+                <span class="text-2xl font-semibold text-white uppercase">
+                  {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                </span>
+              </div>
+              
+              <h2 class="text-xl font-semibold text-white">
+                {user.first_name} {user.last_name}
+              </h2>
+              <p class="text-gray-300 mb-4">@{user.username}</p>
+              
+              <!-- Role badge -->
+              <div class="flex justify-center">
+                <span class={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  user.role === 'admin' 
+                    ? 'bg-red-100 text-red-800' 
+                    : user.role === 'editor' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </span>
+              </div>
+
+              <!-- Account status -->
+              <div class="mt-4 space-y-2 text-sm">
+                <div class="flex justify-between text-gray-300">
+                  <span>Email verified:</span>
+                  <span class={user.email_verified ? 'text-green-400' : 'text-yellow-400'}>
+                    {user.email_verified ? 'Yes' : 'Pending'}
+                  </span>
+                </div>
+                <div class="flex justify-between text-gray-300">
+                  <span>2FA enabled:</span>
+                  <span class={user.totp_enabled ? 'text-green-400' : 'text-gray-400'}>
+                    {user.totp_enabled ? 'Yes' : 'No'}
+                  </span>
+                </div>
+                <div class="flex justify-between text-gray-300">
+                  <span>Magic link:</span>
+                  <span class={user.magic_link_enabled ? 'text-green-400' : 'text-gray-400'}>
+                    {user.magic_link_enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Forms -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Profile Information -->
+          <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+            <h3 class="text-lg font-semibold text-white mb-4">Profile Information</h3>
+            <div id="profile-form-container">
+              <!-- Profile form will be loaded here -->
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">First Name</label>
+                    <input 
+                      type="text" 
+                      value={user.first_name}
+                      class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+                      readonly
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
+                    <input 
+                      type="text" 
+                      value={user.last_name}
+                      class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+                      readonly
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+                  <input 
+                    type="text" 
+                    value={user.username}
+                    class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+                    readonly
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                  <input 
+                    type="email" 
+                    value={user.email}
+                    class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+                    readonly
+                  />
+                </div>
+                <button 
+                  id="edit-profile-btn"
+                  class="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Change Password -->
+          <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+            <h3 class="text-lg font-semibold text-white mb-4">Change Password</h3>
+            <div id="password-form-container">
+              <p class="text-gray-300 text-sm mb-4">
+                Update your password to keep your account secure.
+              </p>
+              <button 
+                id="change-password-btn"
+                class="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Change Password
+              </button>
+            </div>
+          </div>
+
+          <!-- Security Settings -->
+          <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+            <h3 class="text-lg font-semibold text-white mb-4">Security Settings</h3>
+            <div class="space-y-4">
+              {!user.totp_enabled && (
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-white font-medium">Two-Factor Authentication</h4>
+                    <p class="text-gray-300 text-sm">Add an extra layer of security to your account</p>
+                  </div>
+                  <a 
+                    href="/auth/2fa-setup"
+                    class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                  >
+                    Enable 2FA
+                  </a>
+                </div>
+              )}
+              
+              {user.totp_enabled && (
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-white font-medium">Two-Factor Authentication</h4>
+                    <p class="text-gray-300 text-sm">Your account is protected with 2FA</p>
+                  </div>
+                  <div class="space-x-2">
+                    <button class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
+                      Recovery Codes
+                    </button>
+                    <button class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
+                      Disable 2FA
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-white font-medium">Magic Link Login</h4>
+                  <p class="text-gray-300 text-sm">Sign in without a password using email links</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={user.magic_link_enabled}
+                    class="sr-only peer"
+                  />
+                  <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Placeholder for future interactive functionality
+    const editProfileBtn = document.getElementById('edit-profile-btn');
+    const changePasswordBtn = document.getElementById('change-password-btn');
+
+    editProfileBtn?.addEventListener('click', () => {
+      alert('Profile editing form coming soon!');
+    });
+
+    changePasswordBtn?.addEventListener('click', () => {
+      alert('Change password form coming soon!');
+    });
+  </script>
+</HeaderLayout>

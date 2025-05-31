@@ -1,0 +1,54 @@
+---
+interface Props {
+  type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url';
+  placeholder?: string;
+  value?: string;
+  name?: string;
+  id?: string;
+  required?: boolean;
+  disabled?: boolean;
+  readonly?: boolean;
+  error?: boolean;
+  class?: string;
+}
+
+const {
+  type = 'text',
+  placeholder = '',
+  value = '',
+  name,
+  id,
+  required = false,
+  disabled = false,
+  readonly = false,
+  error = false,
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+const baseClasses = 'block w-full px-3 py-2 border rounded-md text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1';
+
+const normalClasses = 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-red-500 focus:ring-red-500';
+const errorClasses = 'border-red-500 bg-red-50 text-red-900 placeholder-red-400 focus:border-red-600 focus:ring-red-600';
+const disabledClasses = 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200';
+
+const inputClasses = [
+  baseClasses,
+  error ? errorClasses : normalClasses,
+  disabled && disabledClasses,
+  className
+].filter(Boolean).join(' ');
+---
+
+<input
+  type={type}
+  placeholder={placeholder}
+  value={value}
+  name={name}
+  id={id}
+  required={required}
+  disabled={disabled}
+  readonly={readonly}
+  class={inputClasses}
+  {...rest}
+/>

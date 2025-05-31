@@ -1,0 +1,303 @@
+---
+import Button from '../ui/Button.astro';
+import FormField from '../ui/FormField.astro';
+---
+
+<div class="max-w-md mx-auto">
+  <!-- Setup steps -->
+  <div id="setup-steps" class="space-y-6">
+    <!-- Step 1: QR Code -->
+    <div id="step-qr" class="text-center">
+      <h3 class="text-lg font-semibold text-white mb-4">
+        Step 1: Scan QR Code
+      </h3>
+      <p class="text-gray-300 text-sm mb-6">
+        Use your authenticator app (Google Authenticator, Authy, etc.) to scan this QR code:
+      </p>
+      
+      <!-- QR Code container -->
+      <div id="qr-container" class="mb-6">
+        <div class="bg-white p-4 rounded-lg inline-block">
+          <div id="qr-placeholder" class="w-48 h-48 bg-gray-200 flex items-center justify-center text-gray-500">
+            Click "Generate QR Code" to start
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual entry alternative -->
+      <div id="manual-entry" class="hidden">
+        <p class="text-gray-300 text-sm mb-2">
+          Or enter this code manually:
+        </p>
+        <div class="bg-gray-800 p-3 rounded border break-all">
+          <code id="manual-secret" class="text-green-400 text-sm"></code>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <Button 
+          type="button" 
+          variant="primary" 
+          size="lg" 
+          class="w-full"
+          id="generate-qr-btn"
+        >
+          Generate QR Code
+        </Button>
+        
+        <button 
+          type="button"
+          id="show-manual-btn"
+          class="text-gray-300 hover:text-white text-sm underline"
+        >
+          Can't scan? Show manual entry
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Verification -->
+    <div id="step-verify" class="hidden">
+      <h3 class="text-lg font-semibold text-white mb-4">
+        Step 2: Verify Setup
+      </h3>
+      <p class="text-gray-300 text-sm mb-6">
+        Enter the 6-digit code from your authenticator app:
+      </p>
+
+      <form id="verify-form" class="space-y-4">
+        <FormField
+          label="Verification Code"
+          name="totp_code"
+          type="text"
+          placeholder="123456"
+          required
+        />
+
+        <Button 
+          type="submit" 
+          variant="primary" 
+          size="lg" 
+          class="w-full"
+          id="verify-submit"
+        >
+          <span id="verify-submit-text">Verify & Enable 2FA</span>
+        </Button>
+      </form>
+    </div>
+
+    <!-- Step 3: Recovery Codes -->
+    <div id="step-recovery" class="hidden">
+      <h3 class="text-lg font-semibold text-white mb-4">
+        Step 3: Save Recovery Codes
+      </h3>
+      <p class="text-gray-300 text-sm mb-6">
+        Save these recovery codes in a safe place. You can use them to access your account if you lose your authenticator device:
+      </p>
+
+      <div id="recovery-codes" class="bg-gray-800 p-4 rounded border mb-6">
+        <div id="codes-list" class="grid grid-cols-2 gap-2 text-sm font-mono text-green-400">
+          <!-- Recovery codes will be inserted here -->
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <Button 
+          type="button" 
+          variant="primary" 
+          size="lg" 
+          class="w-full"
+          id="download-codes-btn"
+        >
+          Download Codes
+        </Button>
+        
+        <Button 
+          type="button" 
+          variant="secondary" 
+          size="lg" 
+          class="w-full"
+          id="finish-setup-btn"
+        >
+          I've Saved My Codes
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error display -->
+  <div id="totp-error" class="hidden mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+    <div class="flex items-center">
+      <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+      </svg>
+      <span id="totp-error-message"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { apiClient } from '../../lib/api-client';
+  import { authToken, updateUser } from '../../lib/auth-store';
+  import type { TOTPSetupResponse, VerifyTOTPInput } from '../../types/auth';
+
+  // Elements
+  const generateQrBtn = document.getElementById('generate-qr-btn') as HTMLButtonElement;
+  const showManualBtn = document.getElementById('show-manual-btn') as HTMLButtonElement;
+  const qrPlaceholder = document.getElementById('qr-placeholder') as HTMLDivElement;
+  const manualEntry = document.getElementById('manual-entry') as HTMLDivElement;
+  const manualSecret = document.getElementById('manual-secret') as HTMLElement;
+  const stepQr = document.getElementById('step-qr') as HTMLDivElement;
+  const stepVerify = document.getElementById('step-verify') as HTMLDivElement;
+  const stepRecovery = document.getElementById('step-recovery') as HTMLDivElement;
+  const verifyForm = document.getElementById('verify-form') as HTMLFormElement;
+  const verifySubmit = document.getElementById('verify-submit') as HTMLButtonElement;
+  const verifySubmitText = document.getElementById('verify-submit-text') as HTMLSpanElement;
+  const errorDiv = document.getElementById('totp-error') as HTMLDivElement;
+  const errorMessage = document.getElementById('totp-error-message') as HTMLSpanElement;
+  const codesList = document.getElementById('codes-list') as HTMLDivElement;
+  const downloadCodesBtn = document.getElementById('download-codes-btn') as HTMLButtonElement;
+  const finishSetupBtn = document.getElementById('finish-setup-btn') as HTMLButtonElement;
+
+  let currentSetupData: TOTPSetupResponse | null = null;
+
+  // Show error message
+  function showError(message: string) {
+    errorMessage.textContent = message;
+    errorDiv.classList.remove('hidden');
+  }
+
+  // Hide error message
+  function hideError() {
+    errorDiv.classList.add('hidden');
+  }
+
+  // Set loading state for verify button
+  function setVerifyLoading(loading: boolean) {
+    verifySubmit.disabled = loading;
+    verifySubmitText.textContent = loading ? 'Verifying...' : 'Verify & Enable 2FA';
+  }
+
+  // Generate QR code
+  generateQrBtn.addEventListener('click', async () => {
+    const token = authToken.value;
+    if (!token) {
+      showError('Authentication required');
+      return;
+    }
+
+    try {
+      generateQrBtn.disabled = true;
+      generateQrBtn.textContent = 'Generating...';
+      hideError();
+
+      const response = await apiClient.post<TOTPSetupResponse>('/api/2fa/setup', {}, token);
+      currentSetupData = response;
+
+      // Create QR code image
+      const qrImg = document.createElement('img');
+      qrImg.src = `data:image/png;base64,${response.qr_code}`;
+      qrImg.alt = 'TOTP QR Code';
+      qrImg.className = 'w-48 h-48';
+      
+      qrPlaceholder.innerHTML = '';
+      qrPlaceholder.appendChild(qrImg);
+
+      // Set manual secret
+      manualSecret.textContent = response.secret;
+
+      // Show verification step
+      stepVerify.classList.remove('hidden');
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate QR code';
+      showError(message);
+    } finally {
+      generateQrBtn.disabled = false;
+      generateQrBtn.textContent = 'Regenerate QR Code';
+    }
+  });
+
+  // Show manual entry
+  showManualBtn.addEventListener('click', () => {
+    manualEntry.classList.toggle('hidden');
+  });
+
+  // Handle verification
+  verifyForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+
+    const formData = new FormData(verifyForm);
+    const code = formData.get('totp_code') as string;
+
+    if (!code || code.length !== 6) {
+      showError('Please enter a 6-digit code');
+      return;
+    }
+
+    const token = authToken.value;
+    if (!token) {
+      showError('Authentication required');
+      return;
+    }
+
+    try {
+      setVerifyLoading(true);
+
+      const verifyData: VerifyTOTPInput = { code };
+      const response = await apiClient.post('/api/2fa/verify', verifyData, token);
+
+      // Update user state to reflect 2FA enabled
+      updateUser({ totp_enabled: true });
+
+      // Show recovery codes if provided
+      if (response.recovery_codes && response.recovery_codes.length > 0) {
+        displayRecoveryCodes(response.recovery_codes);
+        stepRecovery.classList.remove('hidden');
+        stepQr.classList.add('hidden');
+        stepVerify.classList.add('hidden');
+      } else {
+        // No recovery codes, finish setup
+        finishSetup();
+      }
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Verification failed';
+      showError(message);
+    } finally {
+      setVerifyLoading(false);
+    }
+  });
+
+  // Display recovery codes
+  function displayRecoveryCodes(codes: string[]) {
+    codesList.innerHTML = '';
+    codes.forEach(code => {
+      const codeDiv = document.createElement('div');
+      codeDiv.className = 'p-2 bg-gray-900 rounded text-center';
+      codeDiv.textContent = code;
+      codesList.appendChild(codeDiv);
+    });
+  }
+
+  // Download recovery codes
+  downloadCodesBtn.addEventListener('click', () => {
+    const codes = Array.from(codesList.children).map(el => el.textContent).join('\n');
+    const blob = new Blob([`Gachiakuta Hispano - 2FA Recovery Codes\n\n${codes}\n\nSave these codes securely. Each can only be used once.`], 
+      { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gachiakuta-recovery-codes.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Finish setup
+  finishSetupBtn.addEventListener('click', finishSetup);
+
+  function finishSetup() {
+    alert('2FA has been successfully enabled for your account!');
+    window.location.href = '/auth/profile';
+  }
+</script>

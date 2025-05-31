@@ -1,0 +1,250 @@
+---
+import Button from '../ui/Button.astro';
+import FormField from '../ui/FormField.astro';
+---
+
+<div class="w-full max-w-md mx-auto">
+  <form id="register-form" class="space-y-6">
+    <div>
+      <h2 class="text-2xl font-bold text-center text-white mb-6">
+        Create Account
+      </h2>
+    </div>
+
+    <!-- Error display -->
+    <div id="register-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div class="flex items-center">
+        <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span id="register-error-message"></span>
+      </div>
+    </div>
+
+    <!-- Success message -->
+    <div id="register-success" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+      <div class="flex items-center">
+        <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <span id="register-success-message"></span>
+      </div>
+    </div>
+
+    <!-- Form fields -->
+    <div class="grid grid-cols-2 gap-4">
+      <FormField
+        label="First Name"
+        name="first_name"
+        type="text"
+        placeholder="First name"
+        required
+      />
+
+      <FormField
+        label="Last Name"
+        name="last_name"
+        type="text"
+        placeholder="Last name"
+        required
+      />
+    </div>
+
+    <FormField
+      label="Username"
+      name="username"
+      type="text"
+      placeholder="Choose a username"
+      required
+      helpText="This will be displayed publicly"
+    />
+
+    <FormField
+      label="Email"
+      name="email"
+      type="email"
+      placeholder="Enter your email"
+      required
+      helpText="We'll send you a verification email"
+    />
+
+    <FormField
+      label="Password"
+      name="password"
+      type="password"
+      placeholder="Create a password"
+      required
+      helpText="Minimum 8 characters"
+    />
+
+    <FormField
+      label="Confirm Password"
+      name="confirm_password"
+      type="password"
+      placeholder="Confirm your password"
+      required
+    />
+
+    <!-- Magic link option -->
+    <div class="flex items-center">
+      <input
+        id="magic_link_enabled"
+        name="magic_link_enabled"
+        type="checkbox"
+        class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+      />
+      <label for="magic_link_enabled" class="ml-2 block text-sm text-gray-300">
+        Enable magic link login (passwordless)
+      </label>
+    </div>
+
+    <!-- Submit button -->
+    <Button
+      type="submit"
+      variant="primary"
+      size="lg"
+      class="w-full"
+      id="register-submit"
+    >
+      <span id="register-submit-text">Create Account</span>
+    </Button>
+
+    <!-- Additional links -->
+    <div class="text-center">
+      <div class="text-sm text-gray-300">
+        Already have an account? 
+        <a href="/auth/login" class="text-white hover:underline font-medium">Sign in</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  import { apiClient } from '../../lib/api-client';
+  import type { RegisterInput } from '../../types/auth';
+
+  const form = document.getElementById('register-form') as HTMLFormElement;
+  const errorDiv = document.getElementById('register-error') as HTMLDivElement;
+  const errorMessage = document.getElementById('register-error-message') as HTMLSpanElement;
+  const successDiv = document.getElementById('register-success') as HTMLDivElement;
+  const successMessage = document.getElementById('register-success-message') as HTMLSpanElement;
+  const submitBtn = document.getElementById('register-submit') as HTMLButtonElement;
+  const submitText = document.getElementById('register-submit-text') as HTMLSpanElement;
+
+  // Show error message
+  function showError(message: string) {
+    errorMessage.textContent = message;
+    errorDiv.classList.remove('hidden');
+    successDiv.classList.add('hidden');
+  }
+
+  // Show success message
+  function showSuccess(message: string) {
+    successMessage.textContent = message;
+    successDiv.classList.remove('hidden');
+    errorDiv.classList.add('hidden');
+  }
+
+  // Hide all messages
+  function hideMessages() {
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+  }
+
+  // Set loading state
+  function setLoading(loading: boolean) {
+    submitBtn.disabled = loading;
+    submitText.textContent = loading ? 'Creating account...' : 'Create Account';
+  }
+
+  // Validate password confirmation
+  function validatePasswords(password: string, confirmPassword: string): boolean {
+    if (password !== confirmPassword) {
+      showError('Passwords do not match');
+      return false;
+    }
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters long');
+      return false;
+    }
+    return true;
+  }
+
+  // Handle form submission
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessages();
+    
+    const formData = new FormData(form);
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirm_password') as string;
+
+    // Validate passwords
+    if (!validatePasswords(password, confirmPassword)) {
+      return;
+    }
+
+    const registerData: RegisterInput = {
+      email: formData.get('email') as string,
+      username: formData.get('username') as string,
+      password: password,
+      first_name: formData.get('first_name') as string,
+      last_name: formData.get('last_name') as string,
+      magic_link_enabled: (formData.get('magic_link_enabled') as string) === 'on'
+    };
+
+    // Basic validation
+    if (!registerData.email || !registerData.username || !registerData.password || 
+        !registerData.first_name || !registerData.last_name) {
+      showError('All fields are required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      await apiClient.post('/api/auth/register', registerData);
+      
+      // Show success message
+      showSuccess('Account created successfully! Please check your email for verification. Redirecting to login...');
+      
+      // Clear form
+      form.reset();
+      
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        window.location.href = '/auth/login?message=registration-success';
+      }, 3000);
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Registration failed';
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Real-time password confirmation validation
+  const passwordInput = form.querySelector('input[name="password"]') as HTMLInputElement;
+  const confirmPasswordInput = form.querySelector('input[name="confirm_password"]') as HTMLInputElement;
+
+  confirmPasswordInput.addEventListener('blur', () => {
+    if (confirmPasswordInput.value && passwordInput.value) {
+      if (passwordInput.value !== confirmPasswordInput.value) {
+        confirmPasswordInput.setCustomValidity('Passwords do not match');
+      } else {
+        confirmPasswordInput.setCustomValidity('');
+      }
+    }
+  });
+
+  passwordInput.addEventListener('input', () => {
+    if (confirmPasswordInput.value) {
+      if (passwordInput.value !== confirmPasswordInput.value) {
+        confirmPasswordInput.setCustomValidity('Passwords do not match');
+      } else {
+        confirmPasswordInput.setCustomValidity('');
+      }
+    }
+  });
+</script>

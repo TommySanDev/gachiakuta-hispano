@@ -1,0 +1,130 @@
+---
+import HeaderLayout from '../../layouts/HeaderLayout.astro';
+import TOTPSetupForm from '../../components/auth/TOTPSetupForm.astro';
+import { getUserFromCookies } from '../../lib/auth-server';
+
+// This page requires authentication
+export const prerender = false;
+
+// Server-side authentication check
+const user = await getUserFromCookies(Astro.cookies);
+
+// Redirect if not authenticated
+if (!user) {
+  return Astro.redirect('/auth/login?returnTo=/auth/2fa-setup');
+}
+
+// Redirect if 2FA is already enabled
+if (user.totp_enabled) {
+  return Astro.redirect('/auth/profile?message=2fa-already-enabled');
+}
+---
+
+<HeaderLayout title="Enable 2FA - Gachiakuta Hispano">
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto">
+      <!-- Page header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-white mb-4">
+          Enable Two-Factor Authentication
+        </h1>
+        <p class="text-gray-300 text-lg">
+          Add an extra layer of security to your account
+        </p>
+      </div>
+
+      <!-- Info section -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600 mb-8">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div class="ml-4">
+            <h3 class="text-lg font-semibold text-white mb-2">
+              What is Two-Factor Authentication?
+            </h3>
+            <p class="text-gray-300 text-sm mb-4">
+              Two-Factor Authentication (2FA) adds an extra layer of security to your account. 
+              Even if someone knows your password, they won't be able to access your account without your phone.
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center text-gray-300">
+                <svg class="h-4 w-4 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Protects against password theft
+              </div>
+              <div class="flex items-center text-gray-300">
+                <svg class="h-4 w-4 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Works with popular authenticator apps
+              </div>
+              <div class="flex items-center text-gray-300">
+                <svg class="h-4 w-4 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Includes backup recovery codes
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended apps -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600 mb-8">
+        <h3 class="text-lg font-semibold text-white mb-4">
+          Recommended Authenticator Apps
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="text-center">
+            <div class="bg-gray-800 rounded-lg p-4 mb-2">
+              <svg class="h-8 w-8 mx-auto text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </div>
+            <h4 class="text-white font-medium">Google Authenticator</h4>
+            <p class="text-gray-400 text-xs">Free • iOS & Android</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="bg-gray-800 rounded-lg p-4 mb-2">
+              <svg class="h-8 w-8 mx-auto text-orange-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </div>
+            <h4 class="text-white font-medium">Authy</h4>
+            <p class="text-gray-400 text-xs">Free • Multi-device sync</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="bg-gray-800 rounded-lg p-4 mb-2">
+              <svg class="h-8 w-8 mx-auto text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </div>
+            <h4 class="text-white font-medium">1Password</h4>
+            <p class="text-gray-400 text-xs">Premium • Built-in TOTP</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup form -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-8 shadow-xl border border-gray-600">
+        <TOTPSetupForm />
+      </div>
+
+      <!-- Back link -->
+      <div class="text-center mt-8">
+        <a 
+          href="/auth/profile" 
+          class="text-gray-300 hover:text-white text-sm underline"
+        >
+          ← Back to Profile
+        </a>
+      </div>
+    </div>
+  </div>
+</HeaderLayout>
