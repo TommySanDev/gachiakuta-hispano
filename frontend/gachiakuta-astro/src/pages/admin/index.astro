@@ -1,0 +1,78 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getUserFromCookies, userHasRole } from '../../lib/auth-server';
+
+// Only admins can access
+export const prerender = false;
+
+const user = await getUserFromCookies(Astro.cookies);
+
+if (!user || !userHasRole(user, 'admin')) {
+  return Astro.redirect('/auth/login?error=admin-required');
+}
+---
+
+<AdminLayout title="Admin Dashboard - Gachiakuta Hispano">
+  <div class="p-6">
+    <!-- Welcome section -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-2">
+        Welcome back, {user.first_name}!
+      </h2>
+      <p class="text-gray-300">
+        Here's what's happening with your platform today.
+      </p>
+    </div>
+
+    <!-- Quick Stats (placeholder) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-lg font-medium text-white mb-2">Total Users</h3>
+        <p class="text-3xl font-bold text-blue-400">-</p>
+        <p class="text-gray-400 text-sm">Loading...</p>
+      </div>
+      
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-lg font-medium text-white mb-2">Active Today</h3>
+        <p class="text-3xl font-bold text-green-400">-</p>
+        <p class="text-gray-400 text-sm">Loading...</p>
+      </div>
+      
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-lg font-medium text-white mb-2">New This Week</h3>
+        <p class="text-3xl font-bold text-purple-400">-</p>
+        <p class="text-gray-400 text-sm">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mb-8">
+      <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+      <div class="flex flex-wrap gap-4">
+        <a 
+          href="/admin/users" 
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium transition-colors"
+        >
+          📊 Manage Users
+        </a>
+        
+        <a 
+          href="/admin/users/create" 
+          class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md font-medium transition-colors"
+        >
+          ➕ Create User
+        </a>
+      </div>
+    </div>
+
+    <!-- Recent Activity (placeholder) -->
+    <div>
+      <h3 class="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+      <div class="bg-gray-800 rounded-lg p-6">
+        <p class="text-gray-400 text-center py-8">
+          Activity feed coming soon...
+        </p>
+      </div>
+    </div>
+  </div>
+</AdminLayout>

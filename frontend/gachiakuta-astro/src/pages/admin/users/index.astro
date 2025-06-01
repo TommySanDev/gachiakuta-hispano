@@ -1,0 +1,443 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getUserFromCookies, userHasRole } from '../../../lib/auth-server.ts';
+
+// Only admins can access
+export const prerender = false;
+
+const user = await getUserFromCookies(Astro.cookies);
+
+if (!user || !userHasRole(user, 'admin')) {
+  return Astro.redirect('/auth/login?error=admin-required');
+}
+---
+
+<AdminLayout title="Manage Users - Admin Panel">
+  <div class="p-6">
+    <!-- Header with actions -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-semibold text-white">Users Management</h2>
+        <p class="text-gray-300 text-sm">Manage all platform users</p>
+      </div>
+      
+      <a 
+        href="/admin/users/create"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center"
+      >
+        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Create User
+      </a>
+    </div>
+
+    <!-- Simple search -->
+    <div class="mb-6">
+      <div class="flex items-center space-x-4">
+        <div class="flex-1">
+          <input
+            type="text"
+            id="search-users"
+            placeholder="Search users..."
+            class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+          />
+        </div>
+        
+        <select 
+          id="role-filter"
+          class="px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:border-red-500 focus:ring-red-500"
+        >
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="editor">Editor</option>
+          <option value="user">User</option>
+        </select>
+        
+        <button
+          id="search-btn"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+        >
+          Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Users table -->
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+      <!-- Loading state -->
+      <div id="loading-state" class="p-8 text-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+        <p class="text-gray-300">Loading users...</p>
+      </div>
+
+      <!-- Table content -->
+      <div id="users-table" class="hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-700">
+            <thead class="bg-gray-900">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  User
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Role
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Status
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Joined
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody" class="bg-gray-800 divide-y divide-gray-700">
+              <!-- Users will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div id="error-state" class="hidden p-8 text-center">
+        <p class="text-red-400 mb-4">Failed to load users</p>
+        <button 
+          id="retry-btn"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="hidden mt-6 flex items-center justify-between">
+      <div class="text-sm text-gray-300">
+        Showing <span id="showing-from">0</span> to <span id="showing-to">0</span> of <span id="total-users">0</span> users
+      </div>
+      
+      <div class="flex space-x-2">
+        <button 
+          id="prev-page"
+          class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors disabled:opacity-50"
+          disabled
+        >
+          Previous
+        </button>
+        
+        <span id="page-info" class="px-3 py-2 text-gray-300">
+          Page 1 of 1
+        </span>
+        
+        <button 
+          id="next-page"
+          class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors disabled:opacity-50"
+          disabled
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { apiClient } from '../../../lib/api-client';
+    import { authToken } from '../../../lib/auth-store';
+
+    // State
+    let currentPage = 1;
+    let currentSearch = '';
+    let currentRole = '';
+    const pageSize = 10;
+
+    // Elements
+    const loadingState = document.getElementById('loading-state');
+    const usersTable = document.getElementById('users-table');
+    const errorState = document.getElementById('error-state');
+    const usersTbody = document.getElementById('users-tbody');
+    const searchInput = document.getElementById('search-users') as HTMLInputElement;
+    const roleFilter = document.getElementById('role-filter') as HTMLSelectElement;
+    const searchBtn = document.getElementById('search-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const pagination = document.getElementById('pagination');
+    const prevPageBtn = document.getElementById('prev-page');
+    const nextPageBtn = document.getElementById('next-page');
+    const pageInfo = document.getElementById('page-info');
+    const showingFrom = document.getElementById('showing-from');
+    const showingTo = document.getElementById('showing-to');
+    const totalUsers = document.getElementById('total-users');
+
+    // Show different states
+    function showLoading() {
+      loadingState.classList.remove('hidden');
+      usersTable.classList.add('hidden');
+      errorState.classList.add('hidden');
+      pagination.classList.add('hidden');
+    }
+
+    function showTable() {
+      loadingState.classList.add('hidden');
+      usersTable.classList.remove('hidden');
+      errorState.classList.add('hidden');
+      pagination.classList.remove('hidden');
+    }
+
+    function showError() {
+      loadingState.classList.add('hidden');
+      usersTable.classList.add('hidden');
+      errorState.classList.remove('hidden');
+      pagination.classList.add('hidden');
+    }
+
+    // Format date
+    function formatDate(dateString: string): string {
+      return new Date(dateString).toLocaleDateString();
+    }
+
+    // Get role badge HTML
+    function getRoleBadge(role: string): string {
+      const colors = {
+        admin: 'bg-red-100 text-red-800',
+        editor: 'bg-blue-100 text-blue-800',
+        user: 'bg-gray-100 text-gray-800'
+      };
+      
+      return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colors[role] || colors.user}">
+        ${role.charAt(0).toUpperCase() + role.slice(1)}
+      </span>`;
+    }
+
+    // Get status indicators
+    function getStatusIndicators(user: any): string {
+      const indicators = [];
+      
+      if (!user.is_active) {
+        indicators.push('<span class="text-red-400 text-xs">❌ Inactive</span>');
+      } else {
+        indicators.push('<span class="text-green-400 text-xs">✅ Active</span>');
+      }
+      
+      if (user.email_verified) {
+        indicators.push('<span class="text-green-400 text-xs">📧 Verified</span>');
+      } else {
+        indicators.push('<span class="text-yellow-400 text-xs">⚠️ Unverified</span>');
+      }
+      
+      if (user.totp_enabled) {
+        indicators.push('<span class="text-blue-400 text-xs">🔐 2FA</span>');
+      }
+      
+      return indicators.join('<br>');
+    }
+
+    // Render users table
+    function renderUsers(data: any) {
+      usersTbody.innerHTML = '';
+      
+      data.data.forEach((user: any) => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-700';
+        
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center mr-3">
+                <span class="text-sm font-semibold text-white uppercase">
+                  ${user.first_name.charAt(0)}${user.last_name.charAt(0)}
+                </span>
+              </div>
+              <div>
+                <div class="text-sm font-medium text-white">
+                  ${user.first_name} ${user.last_name}
+                </div>
+                <div class="text-sm text-gray-400">
+                  @${user.username} • ${user.email}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            ${getRoleBadge(user.role)}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-300">
+              ${getStatusIndicators(user)}
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+            ${formatDate(user.created_at)}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <div class="flex space-x-2">
+              <a 
+                href="/admin/users/${user.id}"
+                class="text-blue-400 hover:text-blue-300"
+              >
+                View
+              </a>
+              <button 
+                onclick="deleteUser(${user.id}, '${user.username}')"
+                class="text-red-400 hover:text-red-300"
+              >
+                Delete
+              </button>
+            </div>
+          </td>
+        `;
+        
+        usersTbody.appendChild(row);
+      });
+
+      // Update pagination info
+      updatePaginationInfo(data);
+    }
+
+    // Update pagination
+    function updatePaginationInfo(data: any) {
+      const from = (data.page - 1) * data.page_size + 1;
+      const to = Math.min(data.page * data.page_size, data.total);
+      
+      showingFrom.textContent = from.toString();
+      showingTo.textContent = to.toString();
+      totalUsers.textContent = data.total.toString();
+      pageInfo.textContent = `Page ${data.page} of ${data.total_pages}`;
+      
+      prevPageBtn.disabled = data.page <= 1;
+      nextPageBtn.disabled = data.page >= data.total_pages;
+    }
+
+    // Load users
+    async function loadUsers() {
+      showLoading();
+
+      try {
+        // Get token from cookies directly (more reliable)
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          throw new Error('No auth token found');
+        }
+
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          page_size: pageSize.toString()
+        });
+
+        if (currentSearch) {
+          params.append('search', currentSearch);
+        }
+        
+        if (currentRole) {
+          params.append('role', currentRole);
+        }
+
+        console.log('Loading users with params:', params.toString());
+
+        const response = await fetch(`http://localhost:8080/api/admin/users?${params}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Users loaded:', data);
+        
+        renderUsers(data);
+        showTable();
+        
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        showError();
+      }
+    }
+
+    // Delete user function (global for onclick)
+    (window as any).deleteUser = async function(userId: number, username: string) {
+      if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
+        return;
+      }
+
+      try {
+        // Get token from cookies directly
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          alert('Authentication required');
+          return;
+        }
+
+        console.log('Deleting user:', userId);
+
+        const response = await fetch(`http://localhost:8080/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        console.log('User deleted successfully');
+        loadUsers(); // Reload the list
+        alert('User deleted successfully');
+        
+      } catch (error) {
+        console.error('Delete error:', error);
+        alert('Failed to delete user: ' + error.message);
+      }
+    };
+
+    // Event listeners
+    searchBtn.addEventListener('click', () => {
+      currentSearch = searchInput.value;
+      currentRole = roleFilter.value;
+      currentPage = 1;
+      loadUsers();
+    });
+
+    // Enter key in search
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchBtn.click();
+      }
+    });
+
+    retryBtn.addEventListener('click', loadUsers);
+
+    prevPageBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadUsers();
+      }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+      currentPage++;
+      loadUsers();
+    });
+
+    // Initial load with small delay to ensure DOM is ready
+    setTimeout(() => {
+      loadUsers();
+    }, 100);
+  </script>
+</AdminLayout>

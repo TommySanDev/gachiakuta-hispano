@@ -1,0 +1,51 @@
+---
+import HeaderLayout from './HeaderLayout.astro';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<HeaderLayout title={title}>
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800">
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <!-- Admin Header -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-white flex items-center">
+              <svg class="h-6 w-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 2C5.477 2 2 5.477 2 10s3.477 8 8 8 8-3.477 8-8-3.477-8-8-8zM8 8a1 1 0 000 2h4a1 1 0 100-2H8z" clip-rule="evenodd" />
+              </svg>
+              Admin Panel
+            </h1>
+            <p class="text-gray-300 text-sm">Manage users and platform settings</p>
+          </div>
+          
+          <!-- Navigation -->
+          <nav class="flex space-x-4">
+            <a 
+              href="/admin" 
+              class="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors"
+            >
+              Dashboard
+            </a>
+            <a 
+              href="/admin/users" 
+              class="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors"
+            >
+              Users
+            </a>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg shadow-xl border border-gray-600">
+        <slot />
+      </div>
+    </div>
+  </div>
+</HeaderLayout>
