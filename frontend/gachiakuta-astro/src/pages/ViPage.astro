@@ -1,0 +1,35 @@
+---
+import TVLayout from '../layouts/TVLayout.astro';
+import ContentCard from '../components/ContentCard.astro';
+import { getAllVitalInstruments } from '../lib/vi-api';
+
+const viList = await getAllVitalInstruments();
+---
+
+<TVLayout title="Vital Instruments - Gachiakuta Hispano">
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 pb-20">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-20 left-10 w-64 h-64 bg-red-700 rounded-full opacity-10"></div>
+      <div class="absolute bottom-40 right-20 w-96 h-96 bg-red-600 rounded-full opacity-5"></div>
+    </div>
+
+    <div class="relative z-10 text-center py-10 mb-4">
+      <h1 class="text-5xl font-bold text-white drop-shadow-md">
+        <span class="inline-block transform hover:scale-105 transition-transform">Vital Instruments</span>
+      </h1>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-8 relative z-10">
+      <div class="h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50 mb-16"></div>
+    </div>
+
+    <div class="relative z-10 grid grid-cols-2 gap-x-28 gap-y-32 max-w-6xl mx-auto px-8 place-items-start mt-16">
+      {viList.map((vi) => (
+        <a href={`/vi/${vi.id}`} class="block">
+          <ContentCard name={vi.name} imageUrl={vi.main_image} />
+        </a>
+      ))}
+    </div>
+  </div>
+</TVLayout>
+

@@ -13,9 +13,10 @@ type Chapter struct {
 	Title     string     `json:"title" db:"title"`
 	Number    int        `json:"number" db:"number"`
 	Image     string     `json:"image" db:"image"`
+	Synopsis  string     `json:"synopsis" db:"synopsis"` // NEW
 	CreatedAt time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time  `json:"-" db:"updated_at"`        // Hidden in JSON
-	DeletedAt *time.Time `json:"-" db:"deleted_at"`        // Hidden in JSON
+	UpdatedAt time.Time  `json:"-" db:"updated_at"`
+	DeletedAt *time.Time `json:"-" db:"deleted_at"`
 }
 
 // Common errors
@@ -28,7 +29,7 @@ var (
 // GetAll retrieves all non-deleted chapters
 func GetAll() ([]Chapter, error) {
 	var chapters []Chapter
-	err := config.DB.Select(&chapters, "SELECT * FROM chapters WHERE deleted_at IS NULL ORDER BY created_at DESC")
+	err := config.DB.Select(&chapters, "SELECT * FROM chapters WHERE deleted_at IS NULL ORDER BY number ASC")
 	return chapters, err
 }
 

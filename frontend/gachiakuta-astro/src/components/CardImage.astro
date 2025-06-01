@@ -1,11 +1,14 @@
 ---
+import { Image } from 'astro:assets';
+
 interface Props {
-  imageUrl: string;
+  image: any;
   name: string;
 }
-const { imageUrl, name } = Astro.props;
+
+const { image, name } = Astro.props;
 ---
 <div class="card-image relative overflow-hidden">
-  <img src={imageUrl} alt={name} class="w-full h-[400px] object-cover" />
+  <Image src={image} alt={name} width={300} height={400} class="w-full h-[400px] object-cover" />
 </div>
 

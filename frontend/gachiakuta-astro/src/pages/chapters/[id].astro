@@ -1,0 +1,57 @@
+---
+import TVLayout from '../../layouts/TVLayout.astro';
+import { getChapterById, getAllChapters } from '../../lib/chapter-api';
+import { imageMap } from '../../lib/image-map';
+import { Image } from 'astro:assets';
+
+const { params } = Astro;
+const id = params.id;
+
+let chapter = undefined;
+
+try {
+  chapter = await getChapterById(id);
+} catch (error) {
+  throw new Error(`Chapter with id ${id} not found.`);
+}
+
+const imageFilename = chapter.image.split('/').pop();
+const image = imageFilename ? imageMap[imageFilename] : undefined;
+
+export async function getStaticPaths() {
+  const chapters = await getAllChapters();
+
+  return chapters.map((chap) => ({
+    params: { id: String(chap.id) }
+  }));
+}
+---
+
+<TVLayout title={`Chapter ${chapter.number} - Gachiakuta Hispano`}>
+  <div class="min-h-screen bg-gradient-to-br from-red-900 to-black text-white py-16 px-8 max-w-5xl mx-auto">
+    <div class="flex flex-col md:flex-row gap-12 items-start">
+      <div class="flex-shrink-0 w-full md:w-[260px]">
+        {image && (
+          <Image
+            src={image}
+            alt={`Chapter ${chapter.number}`}
+            width={360}
+            height={240}
+            layout="fixed"
+            fit="cover"
+            position="top"
+            class="rounded shadow-lg"
+          />
+        )}
+      </div>
+
+      <div class="flex-1 space-y-4">
+        <h1 class="text-4xl font-bold">Chapter {chapter.number}</h1>
+        <h2 class="text-lg text-red-400 italic">{chapter.title}</h2>
+        <p class="mt-4 text-sm text-white/70">Published on: {new Date(chapter.created_at).toLocaleDateString()}</p>
+        <p class="mt-6 text-lg leading-relaxed text-white/90">{chapter.synopsis}</p>
+      </div>
+    </div>
+  </div>
+</TVLayout>
+

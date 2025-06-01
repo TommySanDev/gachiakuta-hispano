@@ -15,7 +15,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "generate-image-map": "ts-node src/scripts/generate-image-map.ts"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
 }

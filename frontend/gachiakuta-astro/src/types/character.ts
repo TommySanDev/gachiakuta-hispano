@@ -1,4 +1,4 @@
-// Character model 
+// Represents a character entity returned from the API
 export interface Character {
   id: number;
   name: string;
@@ -16,7 +16,5 @@ export interface Character {
   birth_place: string;
   relatives: string;
   first_appearance: number;
-  created_at: string;
-  updated_at: string;
 }
 
