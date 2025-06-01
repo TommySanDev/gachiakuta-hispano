@@ -1,13 +1,13 @@
 ---
-import TVLayout from '../layouts/TVLayout.astro';
+import HeaderLayout from '../layouts/HeaderLayout.astro';
 import ContentCard from '../components/ContentCard.astro';
 import { getAllVitalInstruments } from '../lib/vi-api';
 
 const viList = await getAllVitalInstruments();
 ---
 
-<TVLayout title="Vital Instruments - Gachiakuta Hispano">
-  <div class="min-h-screen bg-gradient-to-br from-red-900 to-red-800 pb-20">
+<HeaderLayout title="Vital Instruments - Gachiakuta Hispano">
+  <div class="min-h-screen bg-gradient-to-br from-[#4b0000] to-black pb-20">
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute top-20 left-10 w-64 h-64 bg-red-700 rounded-full opacity-10"></div>
       <div class="absolute bottom-40 right-20 w-96 h-96 bg-red-600 rounded-full opacity-5"></div>
@@ -31,5 +31,5 @@ const viList = await getAllVitalInstruments();
       ))}
     </div>
   </div>
-</TVLayout>
+</HeaderLayout>
 

@@ -1,5 +1,5 @@
 ---
-import TVLayout from '../../layouts/TVLayout.astro';
+import HeaderLayout from '../../layouts/HeaderLayout.astro';
 import { getChapterById, getAllChapters } from '../../lib/chapter-api';
 import { imageMap } from '../../lib/image-map';
 import { Image } from 'astro:assets';
@@ -28,7 +28,7 @@ export async function getStaticPaths() {
 }
 ---
 
-<TVLayout title={`Chapter ${chapter.number} - Gachiakuta Hispano`}>
+<HeaderLayout title={`Chapter ${chapter.number} - Gachiakuta Hispano`}>
   <div class="min-h-screen bg-gradient-to-br from-red-900 to-black text-white py-16 px-8 max-w-5xl mx-auto">
     <!-- Chapter content -->
     <div class="flex flex-col md:flex-row gap-12 items-start mb-16">
@@ -58,5 +58,5 @@ export async function getStaticPaths() {
     <!-- Comments section (Server Island) -->
     <CommentsSection server:defer chapterId={chapter.id} />
   </div>
-</TVLayout>
+</HeaderLayout>
 

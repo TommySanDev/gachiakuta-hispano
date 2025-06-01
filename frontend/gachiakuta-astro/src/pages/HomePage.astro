@@ -1,22 +1,107 @@
 ---
-import "../styles/global.css";
+// HomePage.astro
 ---
+  <div class="min-h-screen bg-gradient-to-br from-[#4b0000] to-black flex items-center justify-center px-4">
 
-<div class="flex flex-col items-center justify-center min-h-screen bg-red-800 px-6 py-12">
-  <div class="max-w-3xl text-center">
-    <h1 class="text-5xl md:text-6xl font-bold text-white mb-12">Gachiakuta Hispano</h1>
-    
-    <div class="bg-black bg-opacity-30 rounded-lg p-8 mb-12">
-      <h2 class="text-2xl md:text-3xl mb-6 text-white">Bienvenido a la fan page hispana de Gachiakuta</h2>
-      <p class="text-gray-100 leading-relaxed">
-        Encuentra toda la información sobre tus personajes favoritos, vital instruments, ubicaciones y más del universo de Gachiakuta.
-      </p>
-    </div>
-    
-    <div class="flex justify-center gap-6 mt-8">
-      <a href="/CharactersPage" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-md transition-colors">
-        Ver Personajes
+    <!-- Zona central estilo papel -->
+    <div class="bg-[#f5f1e6] w-full max-w-6xl px-6 py-16 shadow-inner rounded-sm flex justify-between items-end border-y-8 border-black relative">
+
+      <!-- Líneas divisorias -->
+      <div class="absolute top-0 bottom-0 left-1/5 w-px bg-black opacity-30"></div>
+      <div class="absolute top-0 bottom-0 left-2/5 w-px bg-black opacity-30"></div>
+      <div class="absolute top-0 bottom-0 left-3/5 w-px bg-black opacity-30"></div>
+      <div class="absolute top-0 bottom-0 left-4/5 w-px bg-black opacity-30"></div>
+
+      <!-- PERSONAJES -->
+      <a href="/CharactersPage" class="group flex flex-col items-center w-1/5">
+        <div class="vertical-title-wrapper">
+          <div class="vertical-title">
+            {Array.from("Personajes").map(letter => <span>{letter}</span>)}
+          </div>
+        </div>
+        <div class="section-code">005</div>
       </a>
+
+      <!-- INSTRUMENTOS VITALES -->
+      <a href="/ViPage" class="group flex flex-col items-center w-1/5">
+        <div class="vertical-title-wrapper flex-row gap-8">
+          <div class="vertical-title items-end">
+            {Array.from("Instrumentos").map(letter => <span>{letter}</span>)}
+          </div>
+          <div class="vertical-title items-start">
+            {Array.from("Vitales").map(letter => <span>{letter}</span>)}
+          </div>
+        </div>
+        <div class="section-code">025</div>
+      </a>
+
+      <!-- CAPÍTULOS -->
+      <a href="/ChaptersPage" class="group flex flex-col items-center w-1/5">
+        <div class="vertical-title-wrapper">
+          <div class="vertical-title">
+            {Array.from("Capítulos").map(letter => <span>{letter}</span>)}
+          </div>
+        </div>
+        <div class="section-code">045</div>
+      </a>
+
+      <!-- FAVORITOS -->
+      <a href="/favorites" class="group flex flex-col items-center w-1/5">
+        <div class="vertical-title-wrapper">
+          <div class="vertical-title">
+            {Array.from("Favoritos").map(letter => <span>{letter}</span>)}
+          </div>
+        </div>
+        <div class="section-code">065</div>
+      </a>
+
+      <!-- PERFIL -->
+      <a href="/auth/profile" class="group flex flex-col items-center w-1/5">
+        <div class="vertical-title-wrapper">
+          <div class="vertical-title">
+            {Array.from("Perfil").map(letter => <span>{letter}</span>)}
+          </div>
+        </div>
+        <div class="section-code">085</div>
+      </a>
+
     </div>
   </div>
-</div>
+
+<style>
+  .vertical-title-wrapper {
+    display: flex;
+    min-height: 280px;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: 0.05em;
+    color: black;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+
+  .vertical-title-wrapper:hover {
+    opacity: 1;
+  }
+
+  .vertical-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .section-code {
+    color: black;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+  }
+
+  a.group:hover .section-code {
+    opacity: 1;
+  }
+</style>
+

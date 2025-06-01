@@ -1,0 +1,301 @@
+---
+interface Props {
+  entityType: 'character' | 'chapter' | 'vital_instrument';
+  entityId: number;
+  entityName?: string;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'icon' | 'button' | 'text';
+  class?: string;
+}
+
+const { 
+  entityType, 
+  entityId, 
+  entityName = '', 
+  size = 'md', 
+  variant = 'icon',
+  class: className = '' 
+} = Astro.props;
+
+// Size classes for different variants
+const sizeClasses = {
+  sm: {
+    icon: 'h-4 w-4',
+    button: 'px-2 py-1 text-xs',
+    text: 'text-xs'
+  },
+  md: {
+    icon: 'h-5 w-5',
+    button: 'px-3 py-2 text-sm',
+    text: 'text-sm'
+  },
+  lg: {
+    icon: 'h-6 w-6',
+    button: 'px-4 py-2 text-base',
+    text: 'text-base'
+  }
+};
+
+const iconSize = sizeClasses[size].icon;
+const buttonSize = sizeClasses[size].button;
+const textSize = sizeClasses[size].text;
+---
+
+<div 
+  class={`favorite-button-container ${className}`}
+  data-entity-type={entityType}
+  data-entity-id={entityId}
+  data-entity-name={entityName}
+>
+  <!-- Loading state -->
+  <div class="favorite-loading hidden">
+    <div class={`animate-spin ${iconSize}`}>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="text-gray-400">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- Icon variant -->
+  {variant === 'icon' && (
+    <button 
+      class="favorite-btn text-gray-400 hover:text-red-500 transition-colors duration-200"
+      title="Toggle favorite"
+      aria-label={`Toggle favorite for ${entityName || entityType}`}
+    >
+      <!-- Unfavorited state -->
+      <div class="favorite-icon-unfavorited">
+        <svg class={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      </div>
+      
+      <!-- Favorited state -->
+      <div class="favorite-icon-favorited hidden">
+        <svg class={`${iconSize} text-red-500`} fill="currentColor" viewBox="0 0 24 24">
+          <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      </div>
+    </button>
+  )}
+
+  <!-- Button variant -->
+  {variant === 'button' && (
+    <button 
+      class={`favorite-btn ${buttonSize} rounded-md font-medium transition-all duration-200 border`}
+    >
+      <!-- Unfavorited state -->
+      <div class="favorite-button-unfavorited flex items-center space-x-2 text-gray-600 border-gray-300 hover:border-red-500 hover:text-red-500">
+        <svg class={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+        <span>Add to Favorites</span>
+      </div>
+      
+      <!-- Favorited state -->
+      <div class="favorite-button-favorited hidden flex items-center space-x-2 text-red-500 border-red-500 bg-red-50">
+        <svg class={iconSize} fill="currentColor" viewBox="0 0 24 24">
+          <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+        <span>Remove from Favorites</span>
+      </div>
+    </button>
+  )}
+
+  <!-- Text variant -->
+  {variant === 'text' && (
+    <button 
+      class={`favorite-btn ${textSize} font-medium transition-colors duration-200 flex items-center space-x-1`}
+    >
+      <!-- Unfavorited state -->
+      <div class="favorite-text-unfavorited text-gray-600 hover:text-red-500">
+        <svg class={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+        <span>Favorite</span>
+      </div>
+      
+      <!-- Favorited state -->
+      <div class="favorite-text-favorited hidden text-red-500">
+        <svg class={iconSize} fill="currentColor" viewBox="0 0 24 24">
+          <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+        <span>Favorited</span>
+      </div>
+    </button>
+  )}
+
+  <!-- Error state (shared for all variants) -->
+  <div class="favorite-error hidden text-red-500 text-xs mt-1">
+    Failed to update favorite
+  </div>
+</div>
+
+<script>
+  import { 
+    isFavorited, 
+    toggleFavorite, 
+    isAuthenticated,
+    initializeFavorites 
+  } from '../../lib/favorites-store';
+
+  class FavoriteButton {
+    private container: HTMLElement;
+    private button: HTMLButtonElement;
+    private loadingEl: HTMLElement;
+    private errorEl: HTMLElement;
+    private entityType: string;
+    private entityId: number;
+    private entityName: string;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.button = container.querySelector('.favorite-btn') as HTMLButtonElement;
+      this.loadingEl = container.querySelector('.favorite-loading') as HTMLElement;
+      this.errorEl = container.querySelector('.favorite-error') as HTMLElement;
+      
+      this.entityType = container.dataset.entityType || '';
+      this.entityId = parseInt(container.dataset.entityId || '0');
+      this.entityName = container.dataset.entityName || '';
+
+      this.init();
+    }
+
+    private init(): void {
+      // Initialize favorites store if not already done
+      initializeFavorites();
+
+      // Set up click handler
+      this.button?.addEventListener('click', this.handleClick.bind(this));
+
+      // Watch for changes in favorite status
+      this.updateUI();
+      
+      // Set up reactive updates (simple polling for now)
+      setInterval(() => this.updateUI(), 1000);
+    }
+
+    private updateUI(): void {
+      if (!isAuthenticated.value) {
+        this.showUnauthenticated();
+        return;
+      }
+
+      const status = isFavorited.value(this.entityType, this.entityId);
+      this.showFavoriteState(status.isFavorited);
+    }
+
+    private showFavoriteState(favorited: boolean): void {
+      const unfavoritedEls = this.container.querySelectorAll('[class*="unfavorited"]');
+      const favoritedEls = this.container.querySelectorAll('[class*="favorited"]');
+
+      unfavoritedEls.forEach(el => {
+        el.classList.toggle('hidden', favorited);
+      });
+
+      favoritedEls.forEach(el => {
+        el.classList.toggle('hidden', !favorited);
+      });
+
+      this.hideLoading();
+      this.hideError();
+    }
+
+    private showUnauthenticated(): void {
+      // Show unfavorited state for unauthenticated users
+      this.showFavoriteState(false);
+      
+      // Disable button
+      if (this.button) {
+        this.button.disabled = true;
+        this.button.title = 'Sign in to add favorites';
+      }
+    }
+
+    private showLoading(): void {
+      this.loadingEl?.classList.remove('hidden');
+      this.button?.classList.add('hidden');
+    }
+
+    private hideLoading(): void {
+      this.loadingEl?.classList.add('hidden');
+      this.button?.classList.remove('hidden');
+    }
+
+    private showError(): void {
+      this.errorEl?.classList.remove('hidden');
+    }
+
+    private hideError(): void {
+      this.errorEl?.classList.add('hidden');
+    }
+
+    private async handleClick(e: Event): Promise<void> {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!isAuthenticated.value) {
+        // Redirect to login
+        window.location.href = '/auth/login?returnTo=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
+      try {
+        this.showLoading();
+        this.hideError();
+        
+        await toggleFavorite(this.entityType, this.entityId);
+        
+        // Show brief success feedback
+        const status = isFavorited.value(this.entityType, this.entityId);
+        const message = status.isFavorited 
+          ? `Added ${this.entityName || this.entityType} to favorites!`
+          : `Removed ${this.entityName || this.entityType} from favorites!`;
+          
+        // Simple toast notification (you could make this fancier)
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Failed to toggle favorite:', error);
+        this.showError();
+      } finally {
+        this.hideLoading();
+      }
+    }
+  }
+
+  // Initialize all favorite buttons on the page
+  document.addEventListener('DOMContentLoaded', () => {
+    const containers = document.querySelectorAll('.favorite-button-container');
+    containers.forEach(container => {
+      new FavoriteButton(container as HTMLElement);
+    });
+  });
+</script>
+
+<style>
+  .favorite-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .favorite-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+  }
+
+  .favorite-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  /* Smooth transitions for state changes */
+  .favorite-button-container > * {
+    transition: all 0.2s ease-in-out;
+  }
+</style>
