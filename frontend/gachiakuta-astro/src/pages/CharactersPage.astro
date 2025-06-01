@@ -2,6 +2,8 @@
 import TVLayout from '../layouts/TVLayout.astro';
 import ContentCard from '../components/ContentCard.astro';
 import FilterButtons from '../components/FilterButtons.astro';
+import { getAllCharacters } from '../lib/character-api';
+import type { Character } from '../types/character';
 
 const filterButtons = [
   { label: "All", value: "" },
@@ -18,6 +20,14 @@ const status = searchParams.get("status") || "";
 const affiliation = searchParams.get("affiliation") || "";
 const species = searchParams.get("species") || "";
 const page = parseInt(searchParams.get("page") || "1");
+
+let characters: Character[] = [];
+
+try {
+  characters = await getAllCharacters();
+} catch (error) {
+  console.error("Failed to load characters", error);
+}
 ---
 
 <TVLayout title="Characters - Gachiakuta Hispano">
@@ -42,6 +52,11 @@ const page = parseInt(searchParams.get("page") || "1");
     </div>
 
     <div class="relative z-10 grid grid-cols-2 gap-x-28 gap-y-32 max-w-6xl mx-auto px-8 place-items-start mt-16">
+      {characters.map((char) => (
+        <a href={`/characters/${char.id}`} class="block">
+          <ContentCard name={char.name} imageUrl={char.main_image} />
+        </a>
+      ))}
     </div>
   </div>
 </TVLayout>
