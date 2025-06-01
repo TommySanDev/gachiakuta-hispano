@@ -1,0 +1,446 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+
+// Only admins can access
+export const prerender = false;
+
+// Import auth functions directly
+import type { AstroCookies } from 'astro';
+import type { User } from '../../../types/auth';
+
+const API_BASE_URL = import.meta.env.API_URL || 'http://localhost:8080';
+
+async function getUserFromCookies(cookies: AstroCookies): Promise<User | null> {
+  try {
+    const token = cookies.get('auth_token')?.value;
+    if (!token) return null;
+
+    const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      cookies.delete('auth_token', { path: '/' });
+      cookies.delete('auth_user', { path: '/' });
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to validate user token:', error);
+    return null;
+  }
+}
+
+function userHasRole(user: User | null, requiredRole: string): boolean {
+  if (!user) return false;
+  switch (requiredRole) {
+    case 'user': return true;
+    case 'editor': return user.role === 'editor' || user.role === 'admin';
+    case 'admin': return user.role === 'admin';
+    default: return false;
+  }
+}
+
+const currentUser = await getUserFromCookies(Astro.cookies);
+
+if (!currentUser || !userHasRole(currentUser, 'admin')) {
+  return Astro.redirect('/auth/login?error=admin-required');
+}
+
+// Get user ID from URL
+const userId = Astro.params.id;
+if (!userId || isNaN(Number(userId))) {
+  return Astro.redirect('/admin/users?error=invalid-user-id');
+}
+---
+
+<AdminLayout title="User Details - Admin Panel">
+  <div class="p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-semibold text-white">User Details</h2>
+        <p class="text-gray-300 text-sm">View and manage user information</p>
+      </div>
+      
+      <a 
+        href="/admin/users"
+        class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center"
+      >
+        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to Users
+      </a>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="text-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+      <p class="text-gray-300">Loading user details...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="hidden text-center py-12">
+      <div class="bg-red-100 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+        <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">Failed to Load User</h3>
+      <p id="error-message" class="text-gray-300 mb-4">User not found or access denied</p>
+      <button
+        id="retry-btn"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+      >
+        Retry
+      </button>
+    </div>
+
+    <!-- User Content -->
+    <div id="user-content" class="hidden space-y-6">
+      
+      <!-- User Profile Card -->
+      <div class="bg-gray-800 rounded-lg p-6">
+        <div class="flex items-center space-x-6">
+          <!-- Avatar -->
+          <div id="user-avatar" class="h-20 w-20 rounded-full bg-gray-600 flex items-center justify-center">
+            <span id="user-initials" class="text-2xl font-semibold text-white uppercase"></span>
+          </div>
+          
+          <!-- Basic Info -->
+          <div class="flex-1">
+            <h3 id="user-name" class="text-2xl font-bold text-white mb-1"></h3>
+            <p id="user-email" class="text-gray-300 mb-2"></p>
+            <div class="flex items-center space-x-4">
+              <span id="user-role-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"></span>
+              <span id="user-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"></span>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="flex flex-col space-y-2">
+            <button
+              id="edit-user-btn"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              Edit User
+            </button>
+            <button
+              id="delete-user-btn"
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              Delete User
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Details Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Personal Information -->
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h4 class="text-lg font-semibold text-white mb-4">Personal Information</h4>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Username</label>
+              <p id="detail-username" class="text-white"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Full Name</label>
+              <p id="detail-fullname" class="text-white"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Email Address</label>
+              <p id="detail-email" class="text-white"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Role</label>
+              <p id="detail-role" class="text-white"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Status -->
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h4 class="text-lg font-semibold text-white mb-4">Account Status</h4>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400">Account Active</span>
+              <span id="status-active" class="text-sm font-medium"></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400">Email Verified</span>
+              <span id="status-verified" class="text-sm font-medium"></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400">Magic Link Enabled</span>
+              <span id="status-magic-link" class="text-sm font-medium"></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400">2FA Enabled</span>
+              <span id="status-2fa" class="text-sm font-medium"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Activity -->
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h4 class="text-lg font-semibold text-white mb-4">Account Activity</h4>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Member Since</label>
+              <p id="detail-created" class="text-white"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Last Login</label>
+              <p id="detail-last-login" class="text-white"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-400">Last Updated</label>
+              <p id="detail-updated" class="text-white"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Actions -->
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h4 class="text-lg font-semibold text-white mb-4">Admin Actions</h4>
+          <div class="space-y-3">
+            <button
+              id="reset-password-btn"
+              class="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              🔒 Reset Password
+            </button>
+            <button
+              id="disable-2fa-btn"
+              class="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              🔐 Disable 2FA
+            </button>
+            <button
+              id="toggle-status-btn"
+              class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              ⚡ Toggle Status
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ userId }}>
+    let currentUserData = null;
+
+    // Elements
+    const loadingState = document.getElementById('loading-state');
+    const errorState = document.getElementById('error-state');
+    const userContent = document.getElementById('user-content');
+    const errorMessage = document.getElementById('error-message');
+    const retryBtn = document.getElementById('retry-btn');
+
+    // Show different states
+    function showLoading() {
+      loadingState.classList.remove('hidden');
+      errorState.classList.add('hidden');
+      userContent.classList.add('hidden');
+    }
+
+    function showError(message) {
+      loadingState.classList.add('hidden');
+      errorState.classList.remove('hidden');
+      userContent.classList.add('hidden');
+      errorMessage.textContent = message;
+    }
+
+    function showUser() {
+      loadingState.classList.add('hidden');
+      errorState.classList.add('hidden');
+      userContent.classList.remove('hidden');
+    }
+
+    // Format date
+    function formatDate(dateString) {
+      if (!dateString) return 'Never';
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Get role badge
+    function getRoleBadge(role) {
+      const colors = {
+        admin: 'bg-red-100 text-red-800',
+        editor: 'bg-blue-100 text-blue-800',
+        user: 'bg-gray-100 text-gray-800'
+      };
+      return colors[role] || colors.user;
+    }
+
+    // Get status badge
+    function getStatusBadge(isActive) {
+      return isActive 
+        ? 'bg-green-100 text-green-800' 
+        : 'bg-red-100 text-red-800';
+    }
+
+    // Render user data
+    function renderUser(user) {
+      currentUserData = user;
+
+      // Basic info
+      document.getElementById('user-initials').textContent = 
+        user.first_name.charAt(0) + user.last_name.charAt(0);
+      document.getElementById('user-name').textContent = 
+        `${user.first_name} ${user.last_name}`;
+      document.getElementById('user-email').textContent = user.email;
+
+      // Role badge
+      const roleBadge = document.getElementById('user-role-badge');
+      roleBadge.textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+      roleBadge.className = `inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRoleBadge(user.role)}`;
+
+      // Status badge
+      const statusBadge = document.getElementById('user-status-badge');
+      statusBadge.textContent = user.is_active ? 'Active' : 'Inactive';
+      statusBadge.className = `inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(user.is_active)}`;
+
+      // Details
+      document.getElementById('detail-username').textContent = `@${user.username}`;
+      document.getElementById('detail-fullname').textContent = `${user.first_name} ${user.last_name}`;
+      document.getElementById('detail-email').textContent = user.email;
+      document.getElementById('detail-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+
+      // Status indicators
+      document.getElementById('status-active').textContent = user.is_active ? '✅ Yes' : '❌ No';
+      document.getElementById('status-verified').textContent = user.email_verified ? '✅ Yes' : '⚠️ No';
+      document.getElementById('status-magic-link').textContent = user.magic_link_enabled ? '✅ Yes' : '❌ No';
+      document.getElementById('status-2fa').textContent = user.totp_enabled ? '✅ Yes' : '❌ No';
+
+      // Dates
+      document.getElementById('detail-created').textContent = formatDate(user.created_at);
+      document.getElementById('detail-last-login').textContent = formatDate(user.last_login_at);
+      document.getElementById('detail-updated').textContent = formatDate(user.updated_at);
+
+      // Update button text
+      document.getElementById('toggle-status-btn').textContent = 
+        user.is_active ? '❌ Deactivate Account' : '✅ Activate Account';
+    }
+
+    // Load user data
+    async function loadUser() {
+      showLoading();
+
+      try {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          throw new Error('Authentication required');
+        }
+
+        console.log('Loading user:', userId);
+
+        const response = await fetch(`http://localhost:8080/api/admin/users/${userId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `User not found (HTTP ${response.status})`);
+        }
+
+        const user = await response.json();
+        console.log('User loaded:', user);
+        
+        renderUser(user);
+        showUser();
+
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        showError(error.message);
+      }
+    }
+
+    // Event listeners
+    retryBtn.addEventListener('click', loadUser);
+
+    // Edit user (placeholder)
+    document.getElementById('edit-user-btn').addEventListener('click', () => {
+      alert('Edit user form coming soon!');
+    });
+
+    // Delete user
+    document.getElementById('delete-user-btn').addEventListener('click', async () => {
+      if (!currentUserData) return;
+
+      if (!confirm(`Are you sure you want to delete user "${currentUserData.username}"?`)) {
+        return;
+      }
+
+      try {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          alert('Authentication required');
+          return;
+        }
+
+        const response = await fetch(`http://localhost:8080/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Delete failed');
+        }
+
+        alert('User deleted successfully');
+        window.location.href = '/admin/users';
+
+      } catch (error) {
+        alert('Failed to delete user: ' + error.message);
+      }
+    });
+
+    // Placeholder admin actions
+    document.getElementById('reset-password-btn').addEventListener('click', () => {
+      alert('Password reset functionality coming soon!');
+    });
+
+    document.getElementById('disable-2fa-btn').addEventListener('click', () => {
+      alert('2FA management coming soon!');
+    });
+
+    document.getElementById('toggle-status-btn').addEventListener('click', () => {
+      alert('Status toggle coming soon!');
+    });
+
+    // Initial load
+    loadUser();
+  </script>
+</AdminLayout>
