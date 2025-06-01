@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
+import EditUserModal from '../../../components/admin/EditUserModal.astro';
 
 // Only admins can access
 export const prerender = false;
@@ -128,13 +129,13 @@ if (!userId || isNaN(Number(userId))) {
               id="edit-user-btn"
               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
             >
-              Edit User
+              ✏️ Edit User
             </button>
             <button
-              id="delete-user-btn"
-              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              id="toggle-status-btn"
+              class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
             >
-              Delete User
+              ⚡ Toggle Status
             </button>
           </div>
         </div>
@@ -225,16 +226,19 @@ if (!userId || isNaN(Number(userId))) {
               🔐 Disable 2FA
             </button>
             <button
-              id="toggle-status-btn"
-              class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              id="delete-user-btn"
+              class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
             >
-              ⚡ Toggle Status
+              🗑️ Delete User
             </button>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Include Edit User Modal -->
+  <EditUserModal />
 
   <script define:vars={{ userId }}>
     let currentUserData = null;
@@ -336,6 +340,14 @@ if (!userId || isNaN(Number(userId))) {
       // Update button text
       document.getElementById('toggle-status-btn').textContent = 
         user.is_active ? '❌ Deactivate Account' : '✅ Activate Account';
+
+      // Update 2FA button visibility
+      const disable2faBtn = document.getElementById('disable-2fa-btn');
+      if (user.totp_enabled) {
+        disable2faBtn.style.display = 'block';
+      } else {
+        disable2faBtn.style.display = 'none';
+      }
     }
 
     // Load user data
@@ -379,19 +391,133 @@ if (!userId || isNaN(Number(userId))) {
       }
     }
 
+    // Refresh user data (called from modal after successful edit)
+    window.refreshUserData = function() {
+      loadUser();
+    };
+
+    // Generic admin action function
+    async function performAdminAction(action, endpoint, confirmMessage, successMessage) {
+      if (!currentUserData) return;
+
+      if (confirmMessage && !confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          alert('Authentication required');
+          return;
+        }
+
+        console.log(`Performing action: ${action}`);
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `${action} failed`);
+        }
+
+        alert(successMessage);
+        loadUser(); // Refresh data
+
+      } catch (error) {
+        alert(`Failed to ${action.toLowerCase()}: ` + error.message);
+      }
+    }
+
     // Event listeners
     retryBtn.addEventListener('click', loadUser);
 
-    // Edit user (placeholder)
+    // Edit user button
     document.getElementById('edit-user-btn').addEventListener('click', () => {
-      alert('Edit user form coming soon!');
+      if (currentUserData) {
+        window.openEditUserModal(currentUserData);
+      }
+    });
+
+    // Toggle status
+    document.getElementById('toggle-status-btn').addEventListener('click', async () => {
+      if (!currentUserData) return;
+
+      const newStatus = !currentUserData.is_active;
+      const action = newStatus ? 'activate' : 'deactivate';
+      
+      if (!confirm(`Are you sure you want to ${action} user "${currentUserData.username}"?`)) {
+        return;
+      }
+
+      try {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          alert('Authentication required');
+          return;
+        }
+
+        const response = await fetch(`http://localhost:8080/api/admin/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_active: newStatus })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Status toggle failed');
+        }
+
+        alert(`User ${action}d successfully`);
+        loadUser(); // Refresh data
+
+      } catch (error) {
+        alert('Failed to toggle status: ' + error.message);
+      }
+    });
+
+    // Reset password
+    document.getElementById('reset-password-btn').addEventListener('click', () => {
+      alert('🚧 Reset password functionality coming soon!\n\nThis will generate a temporary password and send it via email.');
+    });
+
+    // Disable 2FA
+    document.getElementById('disable-2fa-btn').addEventListener('click', () => {
+      if (!currentUserData) return;
+      
+      if (!confirm(`Are you sure you want to disable 2FA for user "${currentUserData.username}"?\n\nThis will remove their two-factor authentication and recovery codes.`)) {
+        return;
+      }
+      
+      alert('🚧 Disable 2FA functionality coming soon!\n\nThis will remove the user\'s TOTP setup and recovery codes.');
     });
 
     // Delete user
     document.getElementById('delete-user-btn').addEventListener('click', async () => {
       if (!currentUserData) return;
 
-      if (!confirm(`Are you sure you want to delete user "${currentUserData.username}"?`)) {
+      if (!confirm(`Are you sure you want to delete user "${currentUserData.username}"?\n\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      // Double confirmation for delete
+      if (!confirm('This will permanently delete the user and all their data.\n\nType the username to confirm deletion.\n\nClick OK if you typed it correctly.')) {
         return;
       }
 
@@ -425,19 +551,6 @@ if (!userId || isNaN(Number(userId))) {
       } catch (error) {
         alert('Failed to delete user: ' + error.message);
       }
-    });
-
-    // Placeholder admin actions
-    document.getElementById('reset-password-btn').addEventListener('click', () => {
-      alert('Password reset functionality coming soon!');
-    });
-
-    document.getElementById('disable-2fa-btn').addEventListener('click', () => {
-      alert('2FA management coming soon!');
-    });
-
-    document.getElementById('toggle-status-btn').addEventListener('click', () => {
-      alert('Status toggle coming soon!');
     });
 
     // Initial load

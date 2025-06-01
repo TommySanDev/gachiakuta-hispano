@@ -1,0 +1,205 @@
+---
+import type { User } from '../../types/auth';
+
+interface Props {
+  user: User;
+}
+
+const { user } = Astro.props;
+---
+
+<div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+  <h3 class="text-lg font-semibold text-white mb-4">Security Settings</h3>
+  <div class="space-y-6">
+    
+    <!-- 2FA Section -->
+    <div class="border border-gray-600 rounded-lg p-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h4 class="text-white font-medium">Two-Factor Authentication</h4>
+          <p class="text-gray-300 text-sm">Add an extra layer of security to your account</p>
+        </div>
+        <div class={`px-3 py-1 rounded-full text-sm font-medium ${
+          user.totp_enabled 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-gray-100 text-gray-800'
+        }`}>
+          {user.totp_enabled ? 'Enabled' : 'Disabled'}
+        </div>
+      </div>
+
+      {!user.totp_enabled ? (
+        <!-- Enable 2FA -->
+        <div class="flex items-center justify-between">
+          <p class="text-gray-300 text-sm">
+            🔒 Protect your account with 2FA
+          </p>
+          <a 
+            href="/auth/2fa-setup"
+            class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+          >
+            Enable 2FA
+          </a>
+        </div>
+      ) : (
+        <!-- 2FA Management -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <p class="text-gray-300 text-sm">
+              ✅ Your account is protected with 2FA
+            </p>
+          </div>
+          
+          <div class="flex flex-wrap gap-2">
+            <button 
+              id="generate-recovery-codes-btn"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors text-sm"
+            >
+              🔄 Generate New Recovery Codes
+            </button>
+            
+            <button 
+              id="disable-2fa-btn"
+              class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors text-sm"
+            >
+              ❌ Disable 2FA
+            </button>
+          </div>
+
+          <!-- Status messages -->
+          <div id="2fa-message" class="hidden mt-3"></div>
+        </div>
+      )}
+    </div>
+
+    <!-- Magic Link Section -->
+    <div class="border border-gray-600 rounded-lg p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h4 class="text-white font-medium">Magic Link Login</h4>
+          <p class="text-gray-300 text-sm">Sign in without a password using email links</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={user.magic_link_enabled}
+            class="sr-only peer"
+            id="magic-link-toggle"
+          />
+          <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { 
+    generateRecoveryCodes, 
+    disable2FA, 
+    toggleMagicLink, 
+    downloadRecoveryCodes 
+  } from '../../lib/profile/profile-actions';
+  import { profileMessages } from '../../lib/profile/profile-store';
+
+  const generateRecoveryCodesBtn = document.getElementById('generate-recovery-codes-btn');
+  const disable2faBtn = document.getElementById('disable-2fa-btn');
+  const messageDiv = document.getElementById('2fa-message');
+  const magicLinkToggle = document.getElementById('magic-link-toggle') as HTMLInputElement;
+
+  // Show 2FA message
+  function show2FAMessage(message: string, isError = false) {
+    if (messageDiv) {
+      messageDiv.className = `mt-3 px-4 py-3 rounded ${
+        isError 
+          ? 'bg-red-100 border border-red-400 text-red-700' 
+          : 'bg-green-100 border border-green-400 text-green-700'
+      }`;
+      messageDiv.textContent = message;
+      messageDiv.classList.remove('hidden');
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 5000);
+    }
+  }
+
+  // Generate new recovery codes
+  generateRecoveryCodesBtn?.addEventListener('click', async () => {
+    if (!confirm('¿Está seguro? Esto invalidará todos sus códigos de recuperación actuales y generará nuevos.')) {
+      return;
+    }
+
+    try {
+      generateRecoveryCodesBtn.disabled = true;
+      generateRecoveryCodesBtn.textContent = 'Generating...';
+
+      const codes = await generateRecoveryCodes();
+      
+      if (codes.length > 0) {
+        downloadRecoveryCodes(codes);
+        show2FAMessage(`✅ ${codes.length} nuevos códigos generados y descargados`);
+      } else {
+        show2FAMessage('Códigos generados exitosamente');
+      }
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error generating recovery codes';
+      show2FAMessage(message, true);
+    } finally {
+      generateRecoveryCodesBtn.disabled = false;
+      generateRecoveryCodesBtn.textContent = '🔄 Generate New Recovery Codes';
+    }
+  });
+
+  // Disable 2FA
+  disable2faBtn?.addEventListener('click', async () => {
+    if (!confirm('¿Está seguro que desea DESHABILITAR la autenticación de dos factores?\n\nEsto hará su cuenta menos segura.')) {
+      return;
+    }
+
+    try {
+      disable2faBtn.disabled = true;
+      disable2faBtn.textContent = 'Disabling...';
+
+      await disable2FA();
+      
+      show2FAMessage('✅ 2FA deshabilitado exitosamente');
+      
+      // Reload page after 2 seconds to update UI
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error disabling 2FA';
+      show2FAMessage(message, true);
+    } finally {
+      disable2faBtn.disabled = false;
+      disable2faBtn.textContent = '❌ Disable 2FA';
+    }
+  });
+
+  // Magic Link toggle handler
+  magicLinkToggle?.addEventListener('change', async () => {
+    const newValue = magicLinkToggle.checked;
+    
+    try {
+      await toggleMagicLink(newValue);
+      
+      show2FAMessage(
+        newValue 
+          ? '✅ Magic link login enabled' 
+          : '❌ Magic link login disabled'
+      );
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update magic link setting';
+      show2FAMessage(message, true);
+      
+      // Revert toggle on error
+      magicLinkToggle.checked = !newValue;
+    }
+  });
+</script>
