@@ -189,6 +189,7 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 			r.Delete("/{id}/permanent", userHandler.DeleteUserPermanently)
 			r.Patch("/{id}/restore", userHandler.RestoreUser)
       r.Post("/{id}/reset-password", userHandler.AdminResetPassword)
+      r.Delete("/{id}/disable-2fa", userHandler.AdminDisable2FA)
 		})
 
 		// Permanent deletion and restore operations
