@@ -1,7 +1,7 @@
 ---
 import TVLayout from '../../layouts/TVLayout.astro';
 import { getCharacterById, getAllCharacters } from '../../lib/character-api';
-import { characterImageMap } from '../../lib/image-map';
+import { imageMap } from '../../lib/image-map';
 import { Image } from 'astro:assets';
 
 const { params } = Astro;
@@ -16,7 +16,7 @@ try {
 }
 
 const imageFilename = character.main_image.split('/').pop();
-const image = imageFilename ? characterImageMap[imageFilename] : undefined;
+const image = imageFilename ? imageMap[imageFilename] : undefined;
 
 export async function getStaticPaths() {
   const characters = await getAllCharacters();

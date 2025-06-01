@@ -1,0 +1,149 @@
+---
+interface Props {
+  chapterId: number;
+}
+
+const { chapterId } = Astro.props;
+---
+
+<div class="comment-form-container bg-gray-800 p-6 rounded-lg">
+  <h3 class="text-white text-lg font-semibold mb-4">Add a Comment</h3>
+  
+  <!-- Success/Error messages -->
+  <div id="comment-success" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+    <span id="comment-success-message"></span>
+  </div>
+  
+  <div id="comment-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <span id="comment-error-message"></span>
+  </div>
+
+  <form id="comment-form" data-chapter-id={chapterId}>
+    <div class="mb-4">
+      <textarea 
+        name="content" 
+        placeholder="Share your thoughts about this chapter..."
+        class="w-full bg-gray-700 text-white rounded-lg p-3 border border-gray-600 focus:border-red-500 focus:ring-red-500 resize-none"
+        rows="4"
+        required
+        minlength="5"
+        maxlength="500"
+      ></textarea>
+      <div class="text-right mt-1">
+        <span id="char-count" class="text-gray-400 text-sm">0/500</span>
+      </div>
+    </div>
+    
+    <div class="flex justify-end">
+      <button 
+        type="submit" 
+        id="submit-comment"
+        class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+      >
+        <span id="submit-text">Post Comment</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  import { createComment } from '../../lib/comment-api';
+  import { authToken } from '../../lib/auth-store';
+
+  const form = document.getElementById('comment-form') as HTMLFormElement;
+  const textarea = form?.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+  const charCount = document.getElementById('char-count');
+  const submitBtn = document.getElementById('submit-comment') as HTMLButtonElement;
+  const submitText = document.getElementById('submit-text');
+  const successDiv = document.getElementById('comment-success');
+  const successMessage = document.getElementById('comment-success-message');
+  const errorDiv = document.getElementById('comment-error');
+  const errorMessage = document.getElementById('comment-error-message');
+
+  // Character counter
+  textarea?.addEventListener('input', () => {
+    const count = textarea.value.length;
+    if (charCount) {
+      charCount.textContent = `${count}/500`;
+      charCount.className = count > 450 ? 'text-red-400 text-sm' : 'text-gray-400 text-sm';
+    }
+  });
+
+  // Show/hide messages
+  function showSuccess(message: string) {
+    if (successMessage && successDiv && errorDiv) {
+      successMessage.textContent = message;
+      successDiv.classList.remove('hidden');
+      errorDiv.classList.add('hidden');
+    }
+  }
+
+  function showError(message: string) {
+    if (errorMessage && errorDiv && successDiv) {
+      errorMessage.textContent = message;
+      errorDiv.classList.remove('hidden');
+      successDiv.classList.add('hidden');
+    }
+  }
+
+  function hideMessages() {
+    successDiv?.classList.add('hidden');
+    errorDiv?.classList.add('hidden');
+  }
+
+  function setLoading(loading: boolean) {
+    if (submitBtn && submitText) {
+      submitBtn.disabled = loading;
+      submitText.textContent = loading ? 'Posting...' : 'Post Comment';
+    }
+  }
+
+  // Handle form submission
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessages();
+
+    const formData = new FormData(form);
+    const content = formData.get('content') as string;
+    const chapterId = parseInt(form.dataset.chapterId || '0');
+
+    if (!content.trim()) {
+      showError('Please enter a comment');
+      return;
+    }
+
+    if (content.length < 5) {
+      showError('Comment must be at least 5 characters long');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const token = authToken.value;
+      if (!token) {
+        showError('Please sign in to post comments');
+        return;
+      }
+
+      await createComment({ chapter_id: chapterId, content }, token);
+      
+      // Reset form
+      form.reset();
+      if (charCount) charCount.textContent = '0/500';
+      
+      showSuccess('Comment posted successfully! Refresh to see it.');
+      
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        hideMessages();
+      }, 3000);
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to post comment';
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  });
+</script>

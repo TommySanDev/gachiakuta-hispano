@@ -1,0 +1,41 @@
+---
+import { getUserFromCookies } from '../../lib/auth-server';
+import CommentsList from './CommentsList.astro';
+import CommentForm from './CommentForm.astro';
+
+interface Props {
+  chapterId: number;
+}
+
+const { chapterId } = Astro.props;
+const currentUser = await getUserFromCookies(Astro.cookies);
+---
+
+<section class="mt-12 border-t border-gray-700 pt-12">
+  {currentUser ? (
+    <div class="mb-8">
+      <CommentForm chapterId={chapterId} />
+    </div>
+  ) : (
+    <div class="bg-gray-800 p-6 rounded-lg mb-8 text-center">
+      <p class="text-gray-300 mb-4">Sign in to join the discussion about this chapter</p>
+      <div class="space-x-4">
+        <a 
+          href="/auth/login" 
+          class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+        >
+          Sign In
+        </a>
+        <a 
+          href="/auth/register" 
+          class="bg-gray-600 hover:bg-gray-500 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+        >
+          Sign Up
+        </a>
+      </div>
+    </div>
+  )}
+
+  <CommentsList chapterId={String(chapterId)} />
+</section>
+

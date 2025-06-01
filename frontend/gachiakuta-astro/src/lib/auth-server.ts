@@ -63,7 +63,8 @@ export function setAuthCookies(cookies: AstroCookies, user: User, token: string)
   };
 
   cookies.set('auth_token', token, cookieOptions);
-  cookies.set('auth_user', JSON.stringify(user), cookieOptions);
+  cookies.set('auth_user', encodeURIComponent(JSON.stringify(user)), cookieOptions);
+  //cookies.set('auth_user', JSON.stringify(user), cookieOptions);
 }
 
 // Server-side function to clear auth cookies
