@@ -1,6 +1,5 @@
 ---
 import Button from '../ui/Button.astro';
-import FormField from '../ui/FormField.astro';
 ---
 
 <div class="w-full max-w-md mx-auto">
@@ -264,6 +263,12 @@ import FormField from '../ui/FormField.astro';
       
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed';
+
+    // Check if it's an email verification issue
+    if (message.includes('verify') || message.includes('verification')) {
+      message += ' Please check your email and verify your account first.';
+    }
+
       showError(message);
     } finally {
       setLoading(false, submitBtn, submitText, 'Sign In');

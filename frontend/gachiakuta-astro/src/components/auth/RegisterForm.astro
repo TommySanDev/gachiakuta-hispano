@@ -214,7 +214,7 @@ import FormField from '../ui/FormField.astro';
       // Redirect to login after 3 seconds
       setTimeout(() => {
         window.location.href = '/auth/login?message=registration-success';
-      }, 3000);
+      }, 1500);
       
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Registration failed';

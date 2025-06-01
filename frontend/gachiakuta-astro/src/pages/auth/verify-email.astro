@@ -84,8 +84,15 @@ if (!token) {
   </div>
 </HeaderLayout>
 
-<script define:vars={{ token, email }}>
+<script>
   import { apiClient } from '../../lib/api-client';
+
+  // Get values from URL (more reliable than define:vars)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const email = urlParams.get('email');
+
+  console.log('Verification page loaded', { token: token ? 'exists' : 'missing', email });
 
   const loadingDiv = document.getElementById('verification-loading');
   const successDiv = document.getElementById('verification-success');
@@ -108,10 +115,21 @@ if (!token) {
   }
 
   async function verifyEmail() {
+    console.log('Starting verification with token:', token);
+    
+    if (!token) {
+      showError('No verification token found in URL');
+      return;
+    }
+
     try {
-      await apiClient.post('/api/auth/verify-email', { token });
+      console.log('Sending verification request...');
+      const response = await apiClient.post('/api/auth/verify-email', { token });
+      console.log('Verification successful:', response);
       showSuccess();
     } catch (error) {
+      console.error('Verification failed:', error);
+      
       let message = 'The verification link is invalid or has expired.';
       
       if (error instanceof Error) {
@@ -148,5 +166,7 @@ if (!token) {
     }
   });
 
+  // Start verification
+  console.log('About to start verification...');
   verifyEmail();
 </script>
