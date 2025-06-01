@@ -243,6 +243,7 @@ if (!user) {
       </div>
     </div>
   </div>
+</HeaderLayout>
 
   <script>
     import { apiClient } from '../../lib/api-client';
@@ -379,5 +380,45 @@ NOTA: Estos códigos reemplazan a los anteriores.`;
         disable2faBtn.textContent = '❌ Disable 2FA';
       }
     });
+
+    // Magic Link toggle handler
+    const magicLinkToggle = document.getElementById('magic-link-toggle') as HTMLInputElement;
+
+    magicLinkToggle?.addEventListener('change', async () => {
+      const token = authToken.value;
+      if (!token) {
+        showMessage('Authentication required', true);
+        // Revert toggle
+        magicLinkToggle.checked = !magicLinkToggle.checked;
+        return;
+      }
+
+      const newValue = magicLinkToggle.checked;
+      
+      try {
+        // Update via API
+        const updateData = {
+          magic_link_enabled: newValue
+        };
+        
+        const updatedUser = await apiClient.put('/api/users/me', updateData, token);
+        
+        // Update local state
+        updateUser({ magic_link_enabled: newValue });
+        
+        showMessage(
+          newValue 
+            ? '✅ Magic link login enabled' 
+            : '❌ Magic link login disabled'
+        );
+
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update magic link setting';
+        showMessage(message, true);
+        
+        // Revert toggle on error
+        magicLinkToggle.checked = !newValue;
+      }
+    });
+
   </script>
-</HeaderLayout>

@@ -64,6 +64,8 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 	// Handlers with external services
 	authHandler := handler.NewAuthHandler(tokenService, emailService)
 	passwordHandler := handler.NewPasswordHandler(tokenService, emailService)
+	verificationHandler := handler.NewVerificationHandler(emailService)
+
 
 	// === PUBLIC ROUTES (no authentication required) ===
 
@@ -81,6 +83,10 @@ func RegisterRoutes(db *sqlx.DB) http.Handler {
 		r.Post("/reset-password", passwordHandler.RequestPasswordReset)
 		r.Get("/reset-password/validate", passwordHandler.ValidateResetToken)
 		r.Post("/reset-password/confirm", passwordHandler.ResetPassword)
+
+		// Email verification routes
+		r.Post("/verify-email", verificationHandler.VerifyEmail)
+		r.Post("/resend-verification", verificationHandler.ResendVerification)
 	})
 
 	// Character routes

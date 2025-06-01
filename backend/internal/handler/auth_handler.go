@@ -43,10 +43,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send welcome email (don't fail registration if email fails)
+	// Create email verification token
 	if h.EmailService != nil && h.EmailService.IsConfigured() {
-		h.EmailService.SendWelcomeEmail(newUser.Email, newUser.Username)
-		// Email errors are logged in the service, continue with registration
+		verification, err := user.CreateEmailVerificationToken(newUser.ID)
+		if err == nil {
+			// Send verification email
+			h.EmailService.SendVerificationEmail(newUser.Email, newUser.Username, verification.Token)
+		}
+		// Don't fail registration if email fails
 	}
 
 	RespondWithJSON(w, http.StatusCreated, newUser)

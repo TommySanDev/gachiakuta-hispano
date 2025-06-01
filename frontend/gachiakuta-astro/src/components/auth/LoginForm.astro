@@ -21,36 +21,123 @@ import FormField from '../ui/FormField.astro';
       </div>
     </div>
 
-    <!-- Form fields -->
-    <FormField
-      label="Email"
-      name="email"
-      type="email"
-      placeholder="Enter your email"
-      required
-    />
+    <!-- Step 1: Email/Password -->
+    <div id="step-credentials">
+      <div class="space-y-1">
+        <label class="block text-sm font-medium text-gray-300">Email *</label>
+        <input
+          name="email"
+          type="email"
+          required
+          placeholder="Enter your email"
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:border-red-500 focus:ring-red-500"
+        />
+      </div>
 
-    <FormField
-      label="Password"
-      name="password"
-      type="password"
-      placeholder="Enter your password"
-      required
-    />
+      <div class="space-y-1">
+        <label class="block text-sm font-medium text-gray-300">Password *</label>
+        <input
+          name="password"
+          type="password"
+          required
+          placeholder="Enter your password"
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:border-red-500 focus:ring-red-500"
+        />
+      </div>
 
-    <!-- Submit button -->
-    <Button
-      type="submit"
-      variant="primary"
-      size="lg"
-      class="w-full"
-      id="login-submit"
-    >
-      <span id="login-submit-text">Sign In</span>
-    </Button>
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        class="w-full"
+        id="login-submit"
+      >
+        <span id="login-submit-text">Sign In</span>
+      </Button>
+    </div>
+
+    <!-- Step 2: 2FA Code -->
+    <div id="step-2fa" class="hidden">
+      <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+        <div class="flex items-center">
+          <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+          </svg>
+          <span>🔐 Two-factor authentication required</span>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium text-white">Authentication Code *</label>
+        <input
+          name="totp_code"
+          type="text"
+          placeholder="123456"
+          maxlength="6"
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:border-red-500 focus:ring-red-500"
+        />
+        <p class="text-xs text-gray-300">Enter the 6-digit code from your authenticator app</p>
+      </div>
+
+      <Button
+        type="button"
+        variant="primary"
+        size="lg"
+        class="w-full"
+        id="verify-2fa-submit"
+      >
+        <span id="verify-2fa-text">Verify & Sign In</span>
+      </Button>
+
+      <!-- Recovery code option -->
+      <div class="text-center mt-4">
+        <button
+          type="button"
+          id="use-recovery-code-btn"
+          class="text-sm text-gray-300 hover:text-white underline"
+        >
+          Use recovery code instead
+        </button>
+      </div>
+
+      <!-- Recovery code input -->
+      <div id="recovery-code-section" class="hidden mt-4">
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-white">Recovery Code *</label>
+          <input
+            name="recovery_code"
+            type="text"
+            placeholder="XXXX-XXXX-XXXX"
+            class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:border-red-500 focus:ring-red-500"
+          />
+          <p class="text-xs text-gray-300">Enter one of your backup recovery codes</p>
+        </div>
+        
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          class="w-full mt-3"
+          id="use-recovery-submit"
+        >
+          <span id="use-recovery-text">Use Recovery Code</span>
+        </Button>
+      </div>
+
+      <!-- Back to credentials -->
+      <div class="text-center mt-4">
+        <button
+          type="button"
+          id="back-to-credentials-btn"
+          class="text-sm text-gray-300 hover:text-white underline"
+        >
+          ← Back to password
+        </button>
+      </div>
+    </div>
 
     <!-- Additional links -->
-    <div class="text-center space-y-2">
+    <div id="additional-links" class="text-center space-y-2">
       <a href="/auth/reset-password" class="text-sm text-gray-300 hover:text-white underline">
         Forgot your password?
       </a>
@@ -61,7 +148,7 @@ import FormField from '../ui/FormField.astro';
     </div>
 
     <!-- Magic link option -->
-    <div class="text-center pt-4 border-t border-gray-600">
+    <div id="magic-link-section" class="text-center pt-4 border-t border-gray-600">
       <button
         type="button"
         id="magic-link-btn"
@@ -78,34 +165,77 @@ import FormField from '../ui/FormField.astro';
   import { apiClient } from '../../lib/api-client';
   import type { LoginInput, AuthResponse } from '../../types/auth';
 
+  // Elements
   const form = document.getElementById('login-form') as HTMLFormElement;
   const errorDiv = document.getElementById('login-error') as HTMLDivElement;
   const errorMessage = document.getElementById('login-error-message') as HTMLSpanElement;
+  
+  // Steps
+  const stepCredentials = document.getElementById('step-credentials') as HTMLDivElement;
+  const step2FA = document.getElementById('step-2fa') as HTMLDivElement;
+  const additionalLinks = document.getElementById('additional-links') as HTMLDivElement;
+  const magicLinkSection = document.getElementById('magic-link-section') as HTMLDivElement;
+  
+  // Buttons
   const submitBtn = document.getElementById('login-submit') as HTMLButtonElement;
   const submitText = document.getElementById('login-submit-text') as HTMLSpanElement;
+  const verify2FABtn = document.getElementById('verify-2fa-submit') as HTMLButtonElement;
+  const verify2FAText = document.getElementById('verify-2fa-text') as HTMLSpanElement;
+  const useRecoveryBtn = document.getElementById('use-recovery-code-btn') as HTMLButtonElement;
+  const recoverySection = document.getElementById('recovery-code-section') as HTMLDivElement;
+  const useRecoverySubmit = document.getElementById('use-recovery-submit') as HTMLButtonElement;
+  const useRecoveryText = document.getElementById('use-recovery-text') as HTMLSpanElement;
+  const backToCredentialsBtn = document.getElementById('back-to-credentials-btn') as HTMLButtonElement;
   const magicLinkBtn = document.getElementById('magic-link-btn') as HTMLButtonElement;
 
-  // Show error message
+  // State
+  let currentUser: any = null;
+  let authToken: string = '';
+
+  // Show/hide functions
   function showError(message: string) {
     errorMessage.textContent = message;
     errorDiv.classList.remove('hidden');
-    setAuthError(message);
   }
 
-  // Hide error message
   function hideError() {
     errorDiv.classList.add('hidden');
-    setAuthError(null);
   }
 
-  // Set loading state
-  function setLoading(loading: boolean) {
-    submitBtn.disabled = loading;
-    submitText.textContent = loading ? 'Signing in...' : 'Sign In';
-    setAuthLoading(loading);
+  function setLoading(loading: boolean, button: HTMLButtonElement, textSpan: HTMLSpanElement, defaultText: string) {
+    button.disabled = loading;
+    textSpan.textContent = loading ? 'Loading...' : defaultText;
   }
 
-  // Handle form submission
+  function show2FAStep(user: any, token: string) {
+    currentUser = user;
+    authToken = token;
+    
+    stepCredentials.classList.add('hidden');
+    additionalLinks.classList.add('hidden');
+    magicLinkSection.classList.add('hidden');
+    step2FA.classList.remove('hidden');
+    
+    const totpInput = document.querySelector('input[name="totp_code"]') as HTMLInputElement;
+    setTimeout(() => totpInput?.focus(), 100);
+  }
+
+  function showCredentialsStep() {
+    step2FA.classList.add('hidden');
+    recoverySection.classList.add('hidden');
+    stepCredentials.classList.remove('hidden');
+    additionalLinks.classList.remove('hidden');
+    magicLinkSection.classList.remove('hidden');
+  }
+
+  function completeLogin(user: any, token: string) {
+    setAuth(user, token);
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnTo = urlParams.get('returnTo') || '/';
+    window.location.href = returnTo;
+  }
+
+  // Handle initial login
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
@@ -116,34 +246,92 @@ import FormField from '../ui/FormField.astro';
       password: formData.get('password') as string
     };
 
-    // Basic validation
     if (!loginData.email || !loginData.password) {
       showError('Email and password are required');
       return;
     }
 
     try {
-      setLoading(true);
+      setLoading(true, submitBtn, submitText, 'Sign In');
       
       const response = await apiClient.post<AuthResponse>('/api/auth/login', loginData);
       
-      // Set authentication state
-      setAuth(response.user, response.token);
-      
-      // Redirect to intended page or dashboard
-      const urlParams = new URLSearchParams(window.location.search);
-      const returnTo = urlParams.get('returnTo') || '/';
-      window.location.href = returnTo;
+      if (response.user.totp_enabled) {
+        show2FAStep(response.user, response.token);
+      } else {
+        completeLogin(response.user, response.token);
+      }
       
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed';
       showError(message);
     } finally {
-      setLoading(false);
+      setLoading(false, submitBtn, submitText, 'Sign In');
     }
   });
 
-  // Handle magic link request
+  // Handle 2FA verification
+  verify2FABtn.addEventListener('click', async () => {
+    hideError();
+    
+    const formData = new FormData(form);
+    const totpCode = formData.get('totp_code') as string;
+
+    if (!totpCode || totpCode.length !== 6) {
+      showError('Please enter a 6-digit code');
+      return;
+    }
+
+    try {
+      setLoading(true, verify2FABtn, verify2FAText, 'Verify & Sign In');
+      
+      await apiClient.post('/api/2fa/validate', { code: totpCode }, authToken);
+      completeLogin(currentUser, authToken);
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid code';
+      showError(message);
+    } finally {
+      setLoading(false, verify2FABtn, verify2FAText, 'Verify & Sign In');
+    }
+  });
+
+  // Recovery code handlers
+  useRecoveryBtn.addEventListener('click', () => {
+    recoverySection.classList.toggle('hidden');
+  });
+
+  useRecoverySubmit.addEventListener('click', async () => {
+    hideError();
+    
+    const formData = new FormData(form);
+    const recoveryCode = formData.get('recovery_code') as string;
+
+    if (!recoveryCode) {
+      showError('Please enter a recovery code');
+      return;
+    }
+
+    try {
+      setLoading(true, useRecoverySubmit, useRecoveryText, 'Use Recovery Code');
+      
+      await apiClient.post('/api/2fa/recovery-codes/use', { code: recoveryCode }, authToken);
+      completeLogin(currentUser, authToken);
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid recovery code';
+      showError(message);
+    } finally {
+      setLoading(false, useRecoverySubmit, useRecoveryText, 'Use Recovery Code');
+    }
+  });
+
+  backToCredentialsBtn.addEventListener('click', () => {
+    showCredentialsStep();
+    hideError();
+  });
+
+  // Magic link
   magicLinkBtn.addEventListener('click', async () => {
     const formData = new FormData(form);
     const email = formData.get('email') as string;
