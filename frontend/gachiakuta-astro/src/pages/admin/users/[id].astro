@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import EditUserModal from '../../../components/admin/EditUserModal.astro';
+import ResetPasswordModal from '../../../components/admin/ResetPasswordModal.astro';
 
 // Only admins can access
 export const prerender = false;
@@ -239,6 +240,9 @@ if (!userId || isNaN(Number(userId))) {
 
   <!-- Include Edit User Modal -->
   <EditUserModal />
+  
+  <!-- Include Reset Password Modal -->
+  <ResetPasswordModal />
 
   <script define:vars={{ userId }}>
     let currentUserData = null;
@@ -494,7 +498,9 @@ if (!userId || isNaN(Number(userId))) {
 
     // Reset password
     document.getElementById('reset-password-btn').addEventListener('click', () => {
-      alert('🚧 Reset password functionality coming soon!\n\nThis will generate a temporary password and send it via email.');
+      if (currentUserData) {
+        window.resetUserPassword(currentUserData);
+      }
     });
 
     // Disable 2FA
