@@ -312,6 +312,71 @@ func UseRecoveryCode(userID uint, code string) error {
 	return nil
 }
 
+
+// === ADMINS OPERATIONS ===
+
+// AdminDisableTOTP disables TOTP 2FA for any user (admin operation)
+func AdminDisableTOTP(userID uint) error {
+	log := logger.GetLogger(zap.String("component", "admin-totp"), zap.Uint("user_id", userID))
+	log.Info("Admin disabling TOTP for user")
+
+	// Get user to verify they exist and have 2FA enabled
+	u, err := GetByID(userID)
+	if err != nil {
+		log.Error("User not found", zap.Error(err))
+		return ErrUserNotFound
+	}
+
+	if !u.TOTPEnabled {
+		log.Warn("User does not have TOTP enabled")
+		return ErrTOTPNotEnabled
+	}
+
+	now := time.Now()
+
+	// Start transaction for consistency
+	tx, err := config.DB.Beginx()
+	if err != nil {
+		log.Error("Failed to start transaction", zap.Error(err))
+		return err
+	}
+	defer tx.Rollback()
+
+	// Delete TOTP secret and recovery codes
+	_, err = tx.Exec("DELETE FROM totp_secrets WHERE user_id = $1", userID)
+	if err != nil {
+		log.Error("Failed to delete TOTP secrets", zap.Error(err))
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM recovery_codes WHERE user_id = $1", userID)
+	if err != nil {
+		log.Error("Failed to delete recovery codes", zap.Error(err))
+		return err
+	}
+
+	// Disable TOTP for user
+	_, err = tx.Exec("UPDATE users SET totp_enabled = false, updated_at = $1 WHERE id = $2", 
+		now, userID)
+	if err != nil {
+		log.Error("Failed to disable TOTP for user", zap.Error(err))
+		return err
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Error("Failed to commit transaction", zap.Error(err))
+		return err
+	}
+
+	log.Info("TOTP disabled successfully by admin", 
+		zap.String("username", u.Username),
+		zap.String("email", u.Email))
+	
+	return nil
+}
+
 // === HELPER FUNCTIONS ===
 
 // generateRecoveryCodes generates 8 recovery codes for a user

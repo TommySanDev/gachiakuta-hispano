@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/TommySanDev/gachiakuta-hispano/internal/logger"
+	"go.uber.org/zap"
 	"github.com/TommySanDev/gachiakuta-hispano/internal/user"
 )
 
@@ -281,5 +283,75 @@ func (h *UserHandler) AdminResetPassword(w http.ResponseWriter, r *http.Request)
 		"message":          "Password reset successfully",
 		"temporary_password": tempPassword,
 		"instructions":      "Please provide this temporary password to the user. They should change it on first login.",
+	})
+}
+
+// AdminDisable2FA disables TOTP 2FA for any user (admin only)
+func (h *UserHandler) AdminDisable2FA(w http.ResponseWriter, r *http.Request) {
+	log := logger.GetLogger(zap.String("component", "admin-handler"))
+	
+	// Get target user ID from URL
+	userID, err := GetIDParam(r)
+	if err != nil {
+		log.Error("Invalid user ID", zap.Error(err))
+		RespondWithError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	// Get admin user from context for logging
+	adminUser, ok := user.GetUserFromContext(r.Context())
+	if !ok {
+		log.Error("Admin user not found in context")
+		RespondWithError(w, http.StatusUnauthorized, "Admin authentication required")
+		return
+	}
+
+	log.Info("Admin disabling 2FA for user", 
+		zap.Uint("target_user_id", userID),
+		zap.Uint("admin_id", adminUser.ID),
+		zap.String("admin_username", adminUser.Username))
+
+	// Check if target user exists and has 2FA enabled
+	targetUser, err := user.GetByID(userID)
+	if err != nil {
+		log.Error("Target user not found", zap.Error(err), zap.Uint("user_id", userID))
+		RespondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if !targetUser.TOTPEnabled {
+		log.Warn("Target user does not have 2FA enabled", zap.Uint("user_id", userID))
+		RespondWithError(w, http.StatusBadRequest, "User does not have 2FA enabled")
+		return
+	}
+
+	// Disable 2FA for the target user
+	err = user.AdminDisableTOTP(userID)
+	if err != nil {
+		log.Error("Failed to disable 2FA for user", 
+			zap.Error(err), 
+			zap.Uint("target_user_id", userID),
+			zap.Uint("admin_id", adminUser.ID))
+		RespondWithError(w, http.StatusInternalServerError, "Failed to disable 2FA")
+		return
+	}
+
+	log.Info("Admin successfully disabled 2FA for user", 
+		zap.Uint("target_user_id", userID),
+		zap.String("target_username", targetUser.Username),
+		zap.Uint("admin_id", adminUser.ID),
+		zap.String("admin_username", adminUser.Username))
+
+	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "2FA disabled successfully for user",
+		"user": map[string]interface{}{
+			"id":       targetUser.ID,
+			"username": targetUser.Username,
+			"email":    targetUser.Email,
+		},
+		"disabled_by": map[string]interface{}{
+			"id":       adminUser.ID,
+			"username": adminUser.Username,
+		},
 	})
 }
