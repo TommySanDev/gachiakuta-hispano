@@ -116,6 +116,38 @@ The Gachiakuta Hispano Team
     return es.sendEmail(email, subject, body)
 }
 
+// SendVerificationEmail sends an email verification link to the user
+func (es *EmailService) SendVerificationEmail(email, username, token string) error {
+    if !es.IsConfigured() {
+        es.log.Warn("Email service not configured - skipping verification email")
+        return nil
+    }
+
+    verificationURL := fmt.Sprintf("%s/auth/verify-email?token=%s&email=%s", es.config.BaseURL, token, email)
+    
+    subject := "Verify Your Email - Gachiakuta Hispano"
+    body := fmt.Sprintf(`
+Hello %s,
+
+Thank you for registering with Gachiakuta Hispano!
+
+Please click the link below to verify your email address:
+
+%s
+
+This link will expire in 24 hours for security reasons.
+
+If you didn't create an account, you can safely ignore this email.
+
+Welcome to the community!
+
+Best regards,
+The Gachiakuta Hispano Team
+`, username, verificationURL)
+
+    return es.sendEmail(email, subject, body)
+}
+
 // sendEmail is the core email sending function
 func (es *EmailService) sendEmail(to, subject, body string) error {
     // Build message
