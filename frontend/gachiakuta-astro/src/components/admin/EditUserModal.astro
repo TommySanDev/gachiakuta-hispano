@@ -1,0 +1,378 @@
+---
+// Modal component for editing users in admin panel
+---
+
+<!-- Modal Overlay -->
+<div id="edit-user-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between p-6 border-b border-gray-600">
+      <h2 class="text-xl font-semibold text-white">Edit User</h2>
+      <button 
+        id="close-modal-btn"
+        class="text-gray-400 hover:text-white transition-colors"
+      >
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-6">
+      
+      <!-- Success/Error Messages -->
+      <div id="edit-success" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <div class="flex items-center">
+          <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <span id="edit-success-message"></span>
+        </div>
+      </div>
+
+      <div id="edit-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div class="flex items-center">
+          <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          <span id="edit-error-message"></span>
+        </div>
+      </div>
+
+      <!-- Edit User Form -->
+      <form id="edit-user-form" class="space-y-6">
+        
+        <!-- Personal Information -->
+        <div class="bg-gray-700 p-4 rounded-lg">
+          <h3 class="text-lg font-medium text-white mb-4">Personal Information</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">
+                First Name <span class="text-red-400">*</span>
+              </label>
+              <input
+                name="first_name"
+                type="text"
+                required
+                class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">
+                Last Name <span class="text-red-400">*</span>
+              </label>
+              <input
+                name="last_name"
+                type="text"
+                required
+                class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">
+                Username <span class="text-red-400">*</span>
+              </label>
+              <input
+                name="username"
+                type="text"
+                required
+                class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+              />
+              <p class="text-xs text-gray-400 mt-1">Must be unique</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">
+                Email
+              </label>
+              <input
+                name="email"
+                type="email"
+                readonly
+                class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-400 cursor-not-allowed"
+              />
+              <p class="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="bg-gray-700 p-4 rounded-lg">
+          <h3 class="text-lg font-medium text-white mb-4">Account Settings</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">
+                Role <span class="text-red-400">*</span>
+              </label>
+              <select
+                name="role"
+                required
+                class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:border-red-500 focus:ring-red-500"
+              >
+                <option value="user">User</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-center">
+              <div class="space-y-3">
+                <div class="flex items-center">
+                  <input
+                    id="edit-is-active"
+                    name="is_active"
+                    type="checkbox"
+                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label for="edit-is-active" class="ml-2 block text-sm text-gray-300">
+                    Account Active
+                  </label>
+                </div>
+
+                <div class="flex items-center">
+                  <input
+                    id="edit-email-verified"
+                    name="email_verified"
+                    type="checkbox"
+                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label for="edit-email-verified" class="ml-2 block text-sm text-gray-300">
+                    Email Verified
+                  </label>
+                </div>
+
+                <div class="flex items-center">
+                  <input
+                    id="edit-magic-link"
+                    name="magic_link_enabled"
+                    type="checkbox"
+                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label for="edit-magic-link" class="ml-2 block text-sm text-gray-300">
+                    Magic Link Enabled
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-600">
+          <button
+            type="button"
+            id="cancel-edit-btn"
+            class="bg-gray-600 hover:bg-gray-500 text-white px-6 py-3 rounded-md font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="submit"
+            id="save-edit-btn"
+            class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md font-medium transition-colors"
+          >
+            <span id="save-edit-text">Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentEditingUserId: number | null = null;
+
+  // Elements
+  const modal = document.getElementById('edit-user-modal');
+  const form = document.getElementById('edit-user-form') as HTMLFormElement;
+  const closeBtn = document.getElementById('close-modal-btn');
+  const cancelBtn = document.getElementById('cancel-edit-btn');
+  const saveBtn = document.getElementById('save-edit-btn') as HTMLButtonElement;
+  const saveText = document.getElementById('save-edit-text');
+  const successDiv = document.getElementById('edit-success');
+  const successMessage = document.getElementById('edit-success-message');
+  const errorDiv = document.getElementById('edit-error');
+  const errorMessage = document.getElementById('edit-error-message');
+
+  // Show/hide functions
+  function showEditModal() {
+    modal?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideEditModal() {
+    modal?.classList.add('hidden');
+    document.body.style.overflow = '';
+    hideMessages();
+    form?.reset();
+    currentEditingUserId = null;
+  }
+
+  function showSuccess(message: string) {
+    if (successDiv && successMessage && errorDiv) {
+      successMessage.textContent = message;
+      successDiv.classList.remove('hidden');
+      errorDiv.classList.add('hidden');
+    }
+  }
+
+  function showError(message: string) {
+    if (errorDiv && errorMessage && successDiv) {
+      errorMessage.textContent = message;
+      errorDiv.classList.remove('hidden');
+      successDiv.classList.add('hidden');
+    }
+  }
+
+  function hideMessages() {
+    successDiv?.classList.add('hidden');
+    errorDiv?.classList.add('hidden');
+  }
+
+  function setLoading(loading: boolean) {
+    if (saveBtn && saveText) {
+      saveBtn.disabled = loading;
+      saveText.textContent = loading ? 'Saving...' : 'Save Changes';
+    }
+  }
+
+  // Populate form with user data
+  function populateForm(user: any) {
+    if (!form) return;
+
+    const inputs = form.elements;
+    (inputs.namedItem('first_name') as HTMLInputElement).value = user.first_name || '';
+    (inputs.namedItem('last_name') as HTMLInputElement).value = user.last_name || '';
+    (inputs.namedItem('username') as HTMLInputElement).value = user.username || '';
+    (inputs.namedItem('email') as HTMLInputElement).value = user.email || '';
+    (inputs.namedItem('role') as HTMLSelectElement).value = user.role || 'user';
+    (inputs.namedItem('is_active') as HTMLInputElement).checked = user.is_active ?? true;
+    (inputs.namedItem('email_verified') as HTMLInputElement).checked = user.email_verified ?? false;
+    (inputs.namedItem('magic_link_enabled') as HTMLInputElement).checked = user.magic_link_enabled ?? false;
+  }
+
+  // Global function to open edit modal
+  (window as any).openEditUserModal = function(user: any) {
+    currentEditingUserId = user.id;
+    populateForm(user);
+    showEditModal();
+  };
+
+  // Event Listeners
+  closeBtn?.addEventListener('click', hideEditModal);
+  cancelBtn?.addEventListener('click', hideEditModal);
+
+  // Close modal when clicking outside
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      hideEditModal();
+    }
+  });
+
+  // Handle form submission
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessages();
+
+    if (!currentEditingUserId) {
+      showError('No user selected for editing');
+      return;
+    }
+
+    const formData = new FormData(form);
+    const updateData = {
+      first_name: formData.get('first_name') as string,
+      last_name: formData.get('last_name') as string,
+      username: formData.get('username') as string,
+      role: formData.get('role') as string,
+      is_active: formData.get('is_active') === 'on',
+      email_verified: formData.get('email_verified') === 'on',
+      magic_link_enabled: formData.get('magic_link_enabled') === 'on'
+    };
+
+    // Basic validation
+    if (!updateData.first_name || !updateData.last_name || !updateData.username || !updateData.role) {
+      showError('All required fields must be filled');
+      return;
+    }
+
+    if (updateData.username.length < 3) {
+      showError('Username must be at least 3 characters');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Get token from cookies
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      console.log('Updating user:', currentEditingUserId, updateData);
+
+      const response = await fetch(`http://localhost:8080/api/admin/users/${currentEditingUserId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const updatedUser = await response.json();
+      console.log('User updated successfully:', updatedUser);
+
+      showSuccess('User updated successfully!');
+      
+      // Close modal after 1.5 seconds and refresh page data
+      setTimeout(() => {
+        hideEditModal();
+        
+        // Trigger a refresh of the user data on the page
+        if (typeof (window as any).refreshUserData === 'function') {
+          (window as any).refreshUserData();
+        } else {
+          // Fallback: reload the page
+          window.location.reload();
+        }
+      }, 1500);
+
+    } catch (error) {
+      console.error('Update user error:', error);
+      showError(error instanceof Error ? error.message : 'Failed to update user');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Username validation
+  const usernameInput = form?.querySelector('input[name="username"]') as HTMLInputElement;
+  usernameInput?.addEventListener('input', () => {
+    const value = usernameInput.value;
+    if (value.length > 0 && value.length < 3) {
+      usernameInput.setCustomValidity('Username must be at least 3 characters');
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(value) && value.length > 0) {
+      usernameInput.setCustomValidity('Username can only contain letters, numbers, underscores, and hyphens');
+    } else {
+      usernameInput.setCustomValidity('');
+    }
+  });
+</script>

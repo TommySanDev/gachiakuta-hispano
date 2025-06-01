@@ -1,0 +1,234 @@
+---
+import type { User } from '../../types/auth';
+import ProfileMessages from './ProfileMessages.astro';
+
+interface Props {
+  user: User;
+}
+
+const { user } = Astro.props;
+---
+
+<div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+  <h3 class="text-lg font-semibold text-white mb-4">Profile Information</h3>
+  
+  <ProfileMessages successId="profile-success" errorId="profile-error" />
+
+  <!-- Read-only view -->
+  <div id="profile-view" class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">First Name</label>
+        <input 
+          type="text" 
+          value={user.first_name}
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+          readonly
+        />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
+        <input 
+          type="text" 
+          value={user.last_name}
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+          readonly
+        />
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+      <input 
+        type="text" 
+        value={user.username}
+        class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+        readonly
+      />
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+      <input 
+        type="email" 
+        value={user.email}
+        class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+        readonly
+      />
+      <p class="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+    </div>
+    <button 
+      id="edit-profile-btn"
+      class="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+    >
+      Edit Profile
+    </button>
+  </div>
+
+  <!-- Edit form (hidden by default) -->
+  <form id="profile-edit-form" class="hidden space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">First Name</label>
+        <input 
+          id="edit-first-name"
+          name="first_name"
+          type="text" 
+          value={user.first_name}
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+          required
+        />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
+        <input 
+          id="edit-last-name"
+          name="last_name"
+          type="text" 
+          value={user.last_name}
+          class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+          required
+        />
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+      <input 
+        id="edit-username"
+        name="username"
+        type="text" 
+        value={user.username}
+        class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:border-red-500 focus:ring-red-500"
+        required
+      />
+      <p class="text-xs text-gray-400 mt-1">Username must be unique</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+      <input 
+        type="email" 
+        value={user.email}
+        class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-400 placeholder-gray-400"
+        readonly
+        disabled
+      />
+      <p class="text-xs text-gray-400 mt-1">Email cannot be changed for security reasons</p>
+    </div>
+    
+    <div class="flex items-center space-x-4 pt-4">
+      <button 
+        type="submit"
+        id="save-profile-btn"
+        class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
+      >
+        <span id="save-profile-text">Save Changes</span>
+      </button>
+      <button 
+        type="button"
+        id="cancel-edit-btn"
+        class="bg-gray-600 hover:bg-gray-500 text-white font-medium py-2 px-4 rounded-md transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  import { updateProfile } from '../../lib/profile/profile-actions';
+  import { profileMessages } from '../../lib/profile/profile-store';
+
+  const editProfileBtn = document.getElementById('edit-profile-btn');
+  const profileView = document.getElementById('profile-view');
+  const profileEditForm = document.getElementById('profile-edit-form') as HTMLFormElement;
+  const cancelEditBtn = document.getElementById('cancel-edit-btn');
+  const saveProfileBtn = document.getElementById('save-profile-btn') as HTMLButtonElement;
+  const saveProfileText = document.getElementById('save-profile-text');
+
+  function toggleEditMode(editing: boolean) {
+    if (editing) {
+      profileView?.classList.add('hidden');
+      profileEditForm?.classList.remove('hidden');
+    } else {
+      profileView?.classList.remove('hidden');
+      profileEditForm?.classList.add('hidden');
+      profileMessages.hideMessages('profile');
+    }
+  }
+
+  function setSaveLoading(loading: boolean) {
+    if (saveProfileBtn && saveProfileText) {
+      saveProfileBtn.disabled = loading;
+      saveProfileText.textContent = loading ? 'Saving...' : 'Save Changes';
+    }
+  }
+
+  // Event Listeners
+  editProfileBtn?.addEventListener('click', () => {
+    toggleEditMode(true);
+  });
+
+  cancelEditBtn?.addEventListener('click', () => {
+    toggleEditMode(false);
+    profileEditForm?.reset();
+  });
+
+  profileEditForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    profileMessages.hideMessages('profile');
+
+    const formData = new FormData(profileEditForm);
+    const updateData = {
+      first_name: formData.get('first_name') as string,
+      last_name: formData.get('last_name') as string,
+      username: formData.get('username') as string
+    };
+
+    // Basic validation
+    if (!updateData.first_name || !updateData.last_name || !updateData.username) {
+      profileMessages.showError('profile', 'All fields are required');
+      return;
+    }
+
+    if (updateData.username.length < 3) {
+      profileMessages.showError('profile', 'Username must be at least 3 characters');
+      return;
+    }
+
+    try {
+      setSaveLoading(true);
+      const updatedUser = await updateProfile(updateData);
+
+      // Update readonly view
+      const readonlyInputs = profileView?.querySelectorAll('input');
+      if (readonlyInputs) {
+        readonlyInputs[0].value = updatedUser.first_name;
+        readonlyInputs[1].value = updatedUser.last_name;  
+        readonlyInputs[2].value = updatedUser.username;   
+      }
+
+      profileMessages.showSuccess('profile', 'Profile updated successfully!');
+      
+      setTimeout(() => {
+        toggleEditMode(false);
+      }, 2000);
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update profile';
+      profileMessages.showError('profile', message);
+    } finally {
+      setSaveLoading(false);
+    }
+  });
+
+  // Username validation
+  const usernameInput = document.getElementById('edit-username') as HTMLInputElement;
+  usernameInput?.addEventListener('input', () => {
+    const value = usernameInput.value;
+    if (value.length > 0 && value.length < 3) {
+      usernameInput.setCustomValidity('Username must be at least 3 characters');
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(value) && value.length > 0) {
+      usernameInput.setCustomValidity('Username can only contain letters, numbers, underscores, and hyphens');
+    } else {
+      usernameInput.setCustomValidity('');
+    }
+  });
+</script>

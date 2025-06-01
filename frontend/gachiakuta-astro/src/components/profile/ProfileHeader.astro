@@ -1,0 +1,60 @@
+---
+import type { User } from '../../types/auth';
+
+interface Props {
+  user: User;
+}
+
+const { user } = Astro.props;
+---
+
+<div class="bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-6 shadow-xl border border-gray-600">
+  <div class="text-center">
+    <!-- User avatar -->
+    <div class="mx-auto h-24 w-24 rounded-full bg-gray-600 flex items-center justify-center mb-4">
+      <span class="text-2xl font-semibold text-white uppercase">
+        {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+      </span>
+    </div>
+    
+    <h2 class="text-xl font-semibold text-white">
+      {user.first_name} {user.last_name}
+    </h2>
+    <p class="text-gray-300 mb-4">@{user.username}</p>
+    
+    <!-- Role badge -->
+    <div class="flex justify-center">
+      <span class={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+        user.role === 'admin' 
+          ? 'bg-red-100 text-red-800' 
+          : user.role === 'editor' 
+          ? 'bg-blue-100 text-blue-800' 
+          : 'bg-gray-100 text-gray-800'
+      }`}>
+        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+      </span>
+    </div>
+
+    <!-- Account status -->
+    <div class="mt-4 space-y-2 text-sm">
+      <div class="flex justify-between text-gray-300">
+        <span>Email verified:</span>
+        <span class={user.email_verified ? 'text-green-400' : 'text-yellow-400'}>
+          {user.email_verified ? 'Yes' : 'Pending'}
+        </span>
+      </div>
+      <div class="flex justify-between text-gray-300">
+        <span>2FA enabled:</span>
+        <span class={user.totp_enabled ? 'text-green-400' : 'text-gray-400'}>
+          {user.totp_enabled ? 'Yes' : 'No'}
+        </span>
+      </div>
+      <div class="flex justify-between text-gray-300">
+        <span>Magic link:</span>
+        <span class={user.magic_link_enabled ? 'text-green-400' : 'text-gray-400'}>
+          {user.magic_link_enabled ? 'Enabled' : 'Disabled'}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
