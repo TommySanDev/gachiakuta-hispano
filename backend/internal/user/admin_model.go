@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+	"crypto/rand"
+
+  "go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/TommySanDev/gachiakuta-hispano/config"
+	"github.com/TommySanDev/gachiakuta-hispano/internal/logger"
 )
 
 // ListUsersParams parameters for listing users
@@ -231,4 +234,59 @@ func Authenticate(email, password string) (*User, error) {
 	}
 
 	return user, nil
+}
+
+// AdminResetPassword generates a temporary password for a user (admin function)
+func AdminResetPassword(userID uint) (string, error) {
+	// Check if user exists
+	user, err := GetByID(userID)
+	if err != nil {
+		return "", ErrUserNotFound
+	}
+
+	// Generate secure temporary password
+	tempPassword := generateTemporaryPassword()
+
+	// Hash the temporary password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	// Update user password
+	now := time.Now()
+	_, err = config.DB.Exec("UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3", 
+		string(hashedPassword), now, userID)
+	if err != nil {
+		return "", err
+	}
+
+	// Log the password reset action
+	logger.GetLogger(zap.String("component", "admin-reset-password")).Info(
+		"Admin password reset performed",
+		zap.Uint("user_id", userID),
+		zap.String("user_email", user.Email),
+		zap.String("reset_time", now.Format(time.RFC3339)),
+	)
+
+	return tempPassword, nil
+}
+
+// generateTemporaryPassword creates a secure 12-character temporary password
+func generateTemporaryPassword() string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*"
+	const length = 12
+	
+	bytes := make([]byte, length)
+	for i := range bytes {
+		randomByte := make([]byte, 1)
+		_, err := rand.Read(randomByte)
+		if err != nil {
+			// Fallback to time-based seed if crypto/rand fails
+			bytes[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+		} else {
+			bytes[i] = charset[randomByte[0]%byte(len(charset))]
+		}
+	}
+	return string(bytes)
 }

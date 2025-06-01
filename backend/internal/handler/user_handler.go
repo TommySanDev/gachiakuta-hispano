@@ -255,3 +255,31 @@ func (h *UserHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// AdminResetPassword generates a temporary password for a user (admin only)
+func (h *UserHandler) AdminResetPassword(w http.ResponseWriter, r *http.Request) {
+	id, err := GetIDParam(r)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+
+	// Generate temporary password
+	tempPassword, err := user.AdminResetPassword(id)
+	if err != nil {
+		switch err {
+		case user.ErrUserNotFound:
+			RespondWithError(w, http.StatusNotFound, "User not found")
+		default:
+			RespondWithError(w, http.StatusInternalServerError, "Failed to reset password")
+		}
+		return
+	}
+
+	// Return the temporary password to admin
+	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message":          "Password reset successfully",
+		"temporary_password": tempPassword,
+		"instructions":      "Please provide this temporary password to the user. They should change it on first login.",
+	})
+}
