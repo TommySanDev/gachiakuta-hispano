@@ -77,7 +77,7 @@ SMTP_FROM=noreply@gachiakuta-hispano.com
 
 # El resto de valores pueden quedarse como están
 ⚠️ IMPORTANTE: En producción, generar una clave PASETO segura:
-bashhead -c 32 /dev/urandom | base64
+bash# head -c 32 /dev/urandom | base64
 
 3. Levantar Servicios con Docker (Manualmente)
 PostgreSQL:
@@ -124,7 +124,7 @@ Password: admin123
 Role: admin
 
 5. Generar Mapeo de Imágenes (Frontend)
-bashcd frontend/gachiakuta-astro
+bash# cd frontend/gachiakuta-astro
 
 # Generar mapeo automático de imágenes
 pnpm run generate-image-map
@@ -134,12 +134,12 @@ Este script escanea las carpetas src/assets/chars/, src/assets/vi/ y src/assets/
 
 6. Ejecutar el Proyecto
 Terminal 1 - Backend:
-bashcd backend
+bash# cd backend
 go run main.go
 
 # Servidor corriendo en: http://localhost:8080
 Terminal 2 - Frontend:
-bashcd frontend/gachiakuta-astro
+bash# cd frontend/gachiakuta-astro
 pnpm run dev
 
 # Aplicación corriendo en: http://localhost:4321
